@@ -54,7 +54,8 @@
   --card-foreground: #ededed;
   --popover: #171717;
   --popover-foreground: #ededed;
-  --primary: #fbbf24; /* Amber-400 */
+  --primary: #fbbf24;
+  /* Amber-400 */
   --primary-foreground: #171717;
   --secondary: #262626;
   --secondary-foreground: #ededed;
@@ -109,9 +110,201 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     background-image: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0a0a0a 70%);
     background-attachment: fixed;
   }
+}
+
+/* ===== SMOOTH ANIMATIONS ===== */
+
+/* Fade-in animation for page content */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-slow {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Main content - smooth fade in */
+main {
+  animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Cross-fade page transition (fallback) */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Apply to page containers */
+.page-transition {
+  animation: pageEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Smooth transitions for all interactive elements */
+a,
+button,
+input,
+select,
+textarea {
+  transition: all 0.2s ease-out;
+}
+
+/* Card hover animations */
+.bg-white\/5 {
+  transition: all 0.3s ease-out;
+}
+
+.bg-white\/5:hover {
+  transform: translateY(-2px);
+}
+
+/* Staggered animation utility classes */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.4s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+/* Animation delay utilities for staggered effects */
+.animation-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-300 {
+  animation-delay: 300ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+.animation-delay-500 {
+  animation-delay: 500ms;
+}
+
+/* Smooth scroll behavior and force scrollbar to prevent layout shift */
+html {
+  scroll-behavior: smooth;
+  overflow-y: scroll;
+  /* Forces scrollbar to always be present */
+}
+
+/* Smooth transitions for dropdown/select components */
+[data-radix-popper-content-wrapper] {
+  animation: scaleIn 0.15s ease-out;
+}
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

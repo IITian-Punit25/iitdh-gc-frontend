@@ -33,10 +33,7 @@ export default function Navbar() {
             .catch((err) => console.error('Error checking streams:', err));
     }, []);
 
-    const filteredLinks = navLinks.filter(link => {
-        if (link.label === 'Live') return hasActiveStream;
-        return true;
-    }).map(link => {
+    const filteredLinks = navLinks.map(link => {
         if (link.label === 'Live') {
             return { ...link, label: 'Stream', isLive: isLiveNow };
         }
