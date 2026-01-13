@@ -198,40 +198,62 @@ export default function ManageTeams() {
                 </div>
 
                 {selectedTeam ? (
-                    <div className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:border-primary/30 transition-all relative group">
-                        <div className="flex justify-between items-center mb-6">
-                            <input
-                                value={selectedTeam.name}
-                                onChange={(e) => updateTeamName(selectedTeamIndex, e.target.value)}
-                                className="text-2xl font-bold bg-transparent border-b border-white/10 w-full focus:outline-none focus:border-primary text-white pb-2 mr-4"
-                                placeholder="Team Name"
-                            />
-                            <button
-                                onClick={() => removeTeam(selectedTeamIndex)}
-                                className="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors"
-                                title="Delete Team"
-                            >
-                                <Trash className="h-5 w-5" />
-                            </button>
+                    <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-black/30 p-6 border-b border-white/10">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
+                                        {selectedTeam.name?.charAt(0) || 'T'}
+                                    </div>
+                                    <div>
+                                        <input
+                                            value={selectedTeam.name}
+                                            onChange={(e) => updateTeamName(selectedTeamIndex, e.target.value)}
+                                            className="bg-transparent text-2xl font-bold text-white focus:outline-none border-b border-transparent focus:border-primary transition-colors w-full"
+                                            placeholder="Enter Team Name"
+                                        />
+                                        <p className="text-slate-400 text-sm mt-1">{selectedTeam.members.length} members</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => removeTeam(selectedTeamIndex)}
+                                    className="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                                    title="Delete Team"
+                                >
+                                    <Trash className="h-5 w-5" />
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <button
-                                onClick={() => addMember(selectedTeamIndex)}
-                                className="w-full py-4 rounded-xl border border-dashed border-white/20 text-slate-400 hover:text-white hover:border-white/40 transition-all flex items-center justify-center font-medium mb-6"
-                            >
-                                <Plus className="h-5 w-5 mr-2" /> Add Member
-                            </button>
+                        {/* Members Section */}
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm text-slate-400 font-bold uppercase tracking-wider">Team Members</h3>
+                                <button
+                                    onClick={() => addMember(selectedTeamIndex)}
+                                    className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 transition-all font-bold"
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    Add Member
+                                </button>
+                            </div>
 
                             <div className="space-y-3">
                                 {selectedTeam.members.map((member: any, memberIndex: number) => (
-                                    <div key={memberIndex} className="grid grid-cols-12 gap-3 items-center bg-black/40 p-3 rounded-xl border border-white/5 group/member hover:border-white/10 transition-all">
-                                        <div className="col-span-1 flex justify-center">
-                                            <div className="relative w-8 h-8 rounded-full overflow-hidden bg-white/10 border border-white/10 cursor-pointer group/img">
+                                    <div
+                                        key={memberIndex}
+                                        className={`bg-gradient-to-r ${member.isCaptain ? 'from-yellow-500/10 to-transparent border-yellow-500/20' : 'from-white/5 to-transparent border-white/5'} p-4 rounded-xl border transition-all hover:border-white/20`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            {/* Avatar */}
+                                            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-black/40 border-2 border-white/10 cursor-pointer shrink-0 group/img">
                                                 {member.image ? (
                                                     <img src={member.image} alt="Member" className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-[8px] text-slate-400">Img</div>
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-500 text-lg font-bold">
+                                                        {member.name?.charAt(0)?.toUpperCase() || '?'}
+                                                    </div>
                                                 )}
                                                 <input
                                                     type="file"
@@ -241,69 +263,72 @@ export default function ManageTeams() {
                                                     title="Upload Image"
                                                 />
                                                 {uploading[`${selectedTeamIndex}-${memberIndex}`] && (
-                                                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                                        <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                                    <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+                                                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                                    </div>
+                                                )}
+                                                {member.isCaptain && (
+                                                    <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5">
+                                                        <Crown className="h-3 w-3 text-black" />
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
-                                        <div className="col-span-4">
-                                            <input
-                                                placeholder="Name"
-                                                value={member.name}
-                                                onChange={(e) => updateMember(selectedTeamIndex, memberIndex, 'name', e.target.value)}
-                                                className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 focus:border-primary focus:outline-none text-slate-200 text-sm transition-colors"
-                                            />
-                                        </div>
-                                        <div className="col-span-3 relative">
-                                            <CustomSelect
-                                                value={member.year}
-                                                onValueChange={(val) => updateMember(selectedTeamIndex, memberIndex, 'year', val)}
-                                                placeholder="Year"
-                                                options={[
-                                                    { value: '1st Year', label: '1st Year' },
-                                                    { value: '2nd Year', label: '2nd Year' },
-                                                    { value: '3rd Year', label: '3rd Year' },
-                                                    { value: '4th Year', label: '4th Year' },
-                                                    { value: '5th Year', label: '5th Year' }
-                                                ]}
-                                                className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm"
-                                            />
-                                        </div>
-                                        <div className="col-span-2 relative">
-                                            <CustomSelect
-                                                value={member.branch}
-                                                onValueChange={(val) => updateMember(selectedTeamIndex, memberIndex, 'branch', val)}
-                                                placeholder="Branch"
-                                                options={[
-                                                    { value: 'CSE', label: 'CSE' },
-                                                    { value: 'EE', label: 'EE' },
-                                                    { value: 'ME', label: 'ME' },
-                                                    { value: 'ECE', label: 'ECE' },
-                                                    { value: 'EEE', label: 'EEE' },
-                                                    { value: 'M&C', label: 'M&C' },
-                                                    { value: 'EP', label: 'EP' },
-                                                    { value: 'C&IE', label: 'C&IE' },
-                                                    { value: 'C&BE', label: 'C&BE' },
-                                                    { value: 'BS-MS', label: 'BS-MS' }
-                                                ]}
-                                                className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm"
-                                            />
-                                        </div>
-                                        <div className="col-span-2 flex justify-end gap-1">
-                                            <button
-                                                onClick={() => toggleCaptain(selectedTeamIndex, memberIndex)}
-                                                className={`p-2 rounded-lg transition-colors ${member.isCaptain ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/20' : 'text-slate-600 hover:text-yellow-400 hover:bg-yellow-400/10 border border-transparent'}`}
-                                                title={member.isCaptain ? "Team Captain" : "Mark as Captain"}
-                                            >
-                                                <Crown className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => removeMember(selectedTeamIndex, memberIndex)}
-                                                className="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors border border-transparent hover:border-red-500/20"
-                                            >
-                                                <Trash className="h-4 w-4" />
-                                            </button>
+
+                                            {/* Member Info */}
+                                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <input
+                                                    placeholder="Member Name"
+                                                    value={member.name}
+                                                    onChange={(e) => updateMember(selectedTeamIndex, memberIndex, 'name', e.target.value)}
+                                                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 focus:border-primary focus:outline-none text-white text-sm transition-colors"
+                                                />
+                                                <CustomSelect
+                                                    value={member.year}
+                                                    onValueChange={(val) => updateMember(selectedTeamIndex, memberIndex, 'year', val)}
+                                                    placeholder="Year"
+                                                    options={[
+                                                        { value: '1st Year', label: '1st Year' },
+                                                        { value: '2nd Year', label: '2nd Year' },
+                                                        { value: '3rd Year', label: '3rd Year' },
+                                                        { value: '4th Year', label: '4th Year' },
+                                                        { value: '5th Year', label: '5th Year' }
+                                                    ]}
+                                                />
+                                                <CustomSelect
+                                                    value={member.branch}
+                                                    onValueChange={(val) => updateMember(selectedTeamIndex, memberIndex, 'branch', val)}
+                                                    placeholder="Branch"
+                                                    options={[
+                                                        { value: 'CSE', label: 'CSE' },
+                                                        { value: 'EE', label: 'EE' },
+                                                        { value: 'ME', label: 'ME' },
+                                                        { value: 'ECE', label: 'ECE' },
+                                                        { value: 'EEE', label: 'EEE' },
+                                                        { value: 'M&C', label: 'M&C' },
+                                                        { value: 'EP', label: 'EP' },
+                                                        { value: 'C&IE', label: 'C&IE' },
+                                                        { value: 'C&BE', label: 'C&BE' },
+                                                        { value: 'BS-MS', label: 'BS-MS' }
+                                                    ]}
+                                                />
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    onClick={() => toggleCaptain(selectedTeamIndex, memberIndex)}
+                                                    className={`p-2 rounded-lg transition-all ${member.isCaptain ? 'text-yellow-400 bg-yellow-400/10' : 'text-slate-500 hover:text-yellow-400 hover:bg-yellow-400/10'}`}
+                                                    title={member.isCaptain ? "Team Captain" : "Set as Captain"}
+                                                >
+                                                    <Crown className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => removeMember(selectedTeamIndex, memberIndex)}
+                                                    className="text-slate-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-all"
+                                                >
+                                                    <Trash className="h-4 w-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -311,8 +336,11 @@ export default function ManageTeams() {
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center py-12 text-slate-500 bg-white/5 rounded-2xl border border-white/10">
-                        {teams.length === 0 ? "No teams found. Click 'Add Team' to start." : "Select a team from the dropdown to edit."}
+                    <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+                        <Crown className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-400 text-lg">
+                            {teams.length === 0 ? "No teams found. Click 'Add Team' to start." : "Select a team from the dropdown to edit."}
+                        </p>
                     </div>
                 )}
             </main>

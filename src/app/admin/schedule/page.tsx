@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import CustomSelect from '@/components/ui/CustomSelect';
-import { Save, Plus, Trash } from 'lucide-react';
+import { Save, Plus, Trash, Calendar, Clock, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 const SPORTS = [
@@ -28,6 +28,7 @@ export default function ManageSchedule() {
     const [teams, setTeams] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMatchId, setSelectedMatchId] = useState<string>("");
+    const [filterSport, setFilterSport] = useState<string>("All");
     const router = useRouter();
 
     useEffect(() => {
@@ -149,108 +150,174 @@ export default function ManageSchedule() {
                     </div>
                 </div>
 
-                {/* Match Selection Dropdown */}
-                <div className="mb-8">
-                    <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">Select Match to Edit</label>
-                    <CustomSelect
-                        value={selectedMatchId}
-                        onValueChange={setSelectedMatchId}
-                        placeholder="Select a Match"
-                        options={schedule.map(match => ({
-                            value: match.id,
-                            label: `${match.sport} - ${match.teamA} vs ${match.teamB}`
-                        }))}
-                        className="w-full md:w-1/3"
-                    />
+                {/* Match Selection - Two Step */}
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Step 1: Filter by Sport */}
+                    <div>
+                        <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">1. Filter by Sport</label>
+                        <CustomSelect
+                            value={filterSport}
+                            onValueChange={(val) => {
+                                setFilterSport(val);
+                                // Auto-select first match of this sport
+                                const matches = val === "All" ? schedule : schedule.filter(m => m.sport === val);
+                                if (matches.length > 0) {
+                                    setSelectedMatchId(matches[0].id);
+                                } else {
+                                    setSelectedMatchId("");
+                                }
+                            }}
+                            placeholder="All Sports"
+                            options={[
+                                { value: "All", label: "All Sports" },
+                                ...SPORTS.filter(s => schedule.some(m => m.sport === s)).map(s => ({ value: s, label: s }))
+                            ]}
+                        />
+                    </div>
+                    {/* Step 2: Select Match */}
+                    <div className="md:col-span-2">
+                        <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">2. Select Match</label>
+                        <CustomSelect
+                            value={selectedMatchId}
+                            onValueChange={setSelectedMatchId}
+                            placeholder="Select a Match"
+                            options={(filterSport === "All" ? schedule : schedule.filter(m => m.sport === filterSport)).map(match => ({
+                                value: match.id,
+                                label: `${match.teamA} vs ${match.teamB} (${match.category === 'Women' ? 'W' : match.category === 'Men' ? 'M' : 'X'})${match.date ? ` • ${new Date(match.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`
+                            }))}
+                        />
+                        <p className="text-xs text-slate-500 mt-2">(M) = Men • (W) = Women • (X) = Mixed</p>
+                    </div>
                 </div>
 
                 {selectedMatch ? (
-                    <div className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 flex flex-col gap-6 relative group hover:border-white/20 transition-colors">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            <div>
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Sport</label>
-                                <CustomSelect
-                                    value={selectedMatch.sport}
-                                    onValueChange={(val) => updateMatch(selectedMatchIndex, 'sport', val)}
-                                    options={SPORTS.map(s => ({ value: s, label: s }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Category</label>
-                                <CustomSelect
-                                    value={selectedMatch.category || 'Men'}
-                                    onValueChange={(val) => updateMatch(selectedMatchIndex, 'category', val)}
-                                    options={CATEGORIES.map(c => ({ value: c, label: c }))}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Date</label>
-                                <input
-                                    type="date"
-                                    value={selectedMatch.date}
-                                    onChange={(e) => updateMatch(selectedMatchIndex, 'date', e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none transition-colors"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Time</label>
-                                <input
-                                    type="time"
-                                    value={selectedMatch.time}
-                                    onChange={(e) => updateMatch(selectedMatchIndex, 'time', e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none transition-colors"
-                                />
+                    <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-black/30 p-6 border-b border-white/10">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                                        <Calendar className="h-6 w-6 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-white">{selectedMatch.sport}</h2>
+                                        <p className="text-slate-400 text-sm mt-1">{selectedMatch.category} • {selectedMatch.teamA} vs {selectedMatch.teamB}</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => removeMatch(selectedMatchIndex)}
+                                    className="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                                    title="Delete Match"
+                                >
+                                    <Trash className="h-5 w-5" />
+                                    <span className="hidden md:inline">Delete</span>
+                                </button>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 bg-black/20 p-4 rounded-xl border border-white/5">
-                            <div className="flex-1">
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Team A</label>
-                                <CustomSelect
-                                    value={selectedMatch.teamA}
-                                    onValueChange={(val) => updateMatch(selectedMatchIndex, 'teamA', val)}
-                                    placeholder="Select Team"
-                                    options={teams.map(t => ({ value: t.name, label: t.name }))}
-                                    className="bg-transparent border-b border-white/10 rounded-none p-2 text-lg font-medium"
-                                />
+                        {/* Match Details */}
+                        <div className="p-6 space-y-6">
+                            {/* Sport & Category */}
+                            <div>
+                                <h3 className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-4">Event Details</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                                        <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Sport</label>
+                                        <CustomSelect
+                                            value={selectedMatch.sport}
+                                            onValueChange={(val) => updateMatch(selectedMatchIndex, 'sport', val)}
+                                            options={SPORTS.map(s => ({ value: s, label: s }))}
+                                        />
+                                    </div>
+                                    <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                                        <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Category</label>
+                                        <CustomSelect
+                                            value={selectedMatch.category || 'Men'}
+                                            onValueChange={(val) => updateMatch(selectedMatchIndex, 'category', val)}
+                                            options={CATEGORIES.map(c => ({ value: c, label: c }))}
+                                        />
+                                    </div>
+                                    <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                                        <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block flex items-center gap-1">
+                                            <Calendar className="h-3 w-3" /> Date
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={selectedMatch.date}
+                                            onChange={(e) => updateMatch(selectedMatchIndex, 'date', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none transition-colors"
+                                        />
+                                    </div>
+                                    <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                                        <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block flex items-center gap-1">
+                                            <Clock className="h-3 w-3" /> Time
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={selectedMatch.time}
+                                            onChange={(e) => updateMatch(selectedMatchIndex, 'time', e.target.value)}
+                                            className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none transition-colors"
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center justify-center px-4">
-                                <span className="text-slate-500 font-bold text-xl">VS</span>
-                            </div>
-                            <div className="flex-1 text-right">
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Team B</label>
-                                <CustomSelect
-                                    value={selectedMatch.teamB}
-                                    onValueChange={(val) => updateMatch(selectedMatchIndex, 'teamB', val)}
-                                    placeholder="Select Team"
-                                    options={teams.map(t => ({ value: t.name, label: t.name }))}
-                                    className="bg-transparent border-b border-white/10 rounded-none p-2 text-lg font-medium text-right"
-                                />
-                            </div>
-                        </div>
 
-                        <div className="flex justify-between items-end">
-                            <div className="flex-1 max-w-md">
-                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Venue</label>
+                            {/* Teams */}
+                            <div>
+                                <h3 className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-4">Teams</h3>
+                                <div className="bg-gradient-to-r from-primary/5 via-transparent to-accent/5 p-6 rounded-xl border border-white/5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex-1">
+                                            <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Team A</label>
+                                                <CustomSelect
+                                                    value={selectedMatch.teamA}
+                                                    onValueChange={(val) => updateMatch(selectedMatchIndex, 'teamA', val)}
+                                                    placeholder="Select Team"
+                                                    options={teams.filter(t => t.name !== selectedMatch.teamB).map(t => ({ value: t.name, label: t.name }))}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0">
+                                            <div className="w-14 h-14 rounded-full bg-black/40 border border-white/10 flex items-center justify-center">
+                                                <span className="text-slate-400 font-bold text-sm">VS</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="bg-black/30 p-4 rounded-xl border border-white/10">
+                                                <label className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2 block">Team B</label>
+                                                <CustomSelect
+                                                    value={selectedMatch.teamB}
+                                                    onValueChange={(val) => updateMatch(selectedMatchIndex, 'teamB', val)}
+                                                    placeholder="Select Team"
+                                                    options={teams.filter(t => t.name !== selectedMatch.teamA).map(t => ({ value: t.name, label: t.name }))}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Venue */}
+                            <div>
+                                <h3 className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-4 flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" /> Venue
+                                </h3>
                                 <input
                                     value={selectedMatch.venue}
                                     onChange={(e) => updateMatch(selectedMatchIndex, 'venue', e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none transition-colors"
-                                    placeholder="e.g. Main Ground"
+                                    className="w-full md:w-1/2 bg-black/20 border border-white/10 rounded-lg p-4 text-white focus:border-primary focus:outline-none transition-colors"
+                                    placeholder="e.g. Main Ground, Basketball Court"
                                 />
                             </div>
-                            <button
-                                onClick={() => removeMatch(selectedMatchIndex)}
-                                className="p-3 rounded-lg text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-2"
-                                title="Remove Match"
-                            >
-                                <Trash className="h-5 w-5" /> Delete Match
-                            </button>
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center py-12 text-slate-500 bg-white/5 rounded-2xl border border-white/10">
-                        {schedule.length === 0 ? "No matches scheduled. Click 'Add Match' to start." : "Select a match from the dropdown to edit."}
+                    <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+                        <Calendar className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-400 text-lg">
+                            {schedule.length === 0 ? "No matches scheduled. Click 'Add Match' to start." : "Select a match from the dropdown to edit."}
+                        </p>
                     </div>
                 )}
             </main>

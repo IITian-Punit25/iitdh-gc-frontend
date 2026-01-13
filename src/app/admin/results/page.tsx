@@ -3,8 +3,19 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import CustomSelect from '@/components/ui/CustomSelect';
-import { Save, Plus, Trash } from 'lucide-react';
+import { Save, Plus, Trash, FileText, Link as LinkIcon, Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+
+// URL validation helper
+const isValidUrl = (url: string): boolean => {
+    if (!url || url.trim() === '') return true;
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
 
 const SPORTS = [
     'Athletics',
@@ -28,6 +39,8 @@ export default function ManageResults() {
     const [teams, setTeams] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedResultId, setSelectedResultId] = useState<string>("");
+    const [filterSport, setFilterSport] = useState<string>("All");
+    const [uploading, setUploading] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -125,6 +138,31 @@ export default function ManageResults() {
         }
     };
 
+    const handleScoreSheetUpload = async (index: number, file: File) => {
+        if (!file) return;
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/upload`, {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await res.json();
+            if (data.success) {
+                updateResult(index, 'scoreSheetLink', data.url);
+            } else {
+                alert('Upload failed');
+            }
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Error uploading file');
+        } finally {
+            setUploading(false);
+        }
+    };
+
     if (loading) return <div className="min-h-screen bg-background flex items-center justify-center text-slate-400">Loading...</div>;
 
     const selectedResultIndex = results.findIndex(r => r.id === selectedResultId);
@@ -155,19 +193,43 @@ export default function ManageResults() {
                     </div>
                 </div>
 
-                {/* Result Selection Dropdown */}
-                <div className="mb-8">
-                    <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">Select Match to Edit</label>
-                    <CustomSelect
-                        value={selectedResultId}
-                        onValueChange={setSelectedResultId}
-                        placeholder="Select a Match"
-                        options={results.map(result => ({
-                            value: result.id,
-                            label: `${result.sport} - ${result.teamA} vs ${result.teamB}`
-                        }))}
-                        className="w-full md:w-1/3"
-                    />
+                {/* Result Selection - Two Step */}
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Step 1: Filter by Sport */}
+                    <div>
+                        <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">1. Filter by Sport</label>
+                        <CustomSelect
+                            value={filterSport}
+                            onValueChange={(val) => {
+                                setFilterSport(val);
+                                const filteredResults = val === "All" ? results : results.filter(r => r.sport === val);
+                                if (filteredResults.length > 0) {
+                                    setSelectedResultId(filteredResults[0].id);
+                                } else {
+                                    setSelectedResultId("");
+                                }
+                            }}
+                            placeholder="All Sports"
+                            options={[
+                                { value: "All", label: "All Sports" },
+                                ...SPORTS.filter(s => results.some(r => r.sport === s)).map(s => ({ value: s, label: s }))
+                            ]}
+                        />
+                    </div>
+                    {/* Step 2: Select Result */}
+                    <div className="md:col-span-2">
+                        <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">2. Select Match</label>
+                        <CustomSelect
+                            value={selectedResultId}
+                            onValueChange={setSelectedResultId}
+                            placeholder="Select a Match"
+                            options={(filterSport === "All" ? results : results.filter(r => r.sport === filterSport)).map(result => ({
+                                value: result.id,
+                                label: `${result.teamA} vs ${result.teamB} (${result.category === 'Women' ? 'W' : result.category === 'Men' ? 'M' : 'X'})${result.date ? ` • ${new Date(result.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`
+                            }))}
+                        />
+                        <p className="text-xs text-slate-500 mt-2">(M) = Men • (W) = Women • (X) = Mixed</p>
+                    </div>
                 </div>
 
                 {selectedResult ? (
@@ -207,6 +269,79 @@ export default function ManageResults() {
                                     placeholder="https://youtube.com/..."
                                 />
                             </div>
+                        </div>
+
+                        {/* Score Sheet Section */}
+                        <div className="bg-black/20 p-4 rounded-xl border border-white/5">
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-xs text-slate-400 uppercase tracking-wider font-semibold flex items-center">
+                                    <FileText className="h-3 w-3 mr-1" /> Score Sheet
+                                </label>
+                                <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
+                                    <button
+                                        onClick={() => updateResult(selectedResultIndex, 'scoreSheetType', 'url')}
+                                        className={`px-3 py-1 rounded text-xs font-bold transition-all flex items-center gap-1 ${selectedResult.scoreSheetType !== 'upload' ? 'bg-primary text-black' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <LinkIcon className="h-3 w-3" /> Link
+                                    </button>
+                                    <button
+                                        onClick={() => updateResult(selectedResultIndex, 'scoreSheetType', 'upload')}
+                                        className={`px-3 py-1 rounded text-xs font-bold transition-all flex items-center gap-1 ${selectedResult.scoreSheetType === 'upload' ? 'bg-primary text-black' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <Upload className="h-3 w-3" /> Upload
+                                    </button>
+                                </div>
+                            </div>
+                            {selectedResult.scoreSheetType === 'upload' ? (
+                                <div className="relative">
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                                        onChange={(e) => e.target.files && handleScoreSheetUpload(selectedResultIndex, e.target.files[0])}
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                                        disabled={uploading}
+                                    />
+                                    {uploading && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+                                            <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                                        </div>
+                                    )}
+                                    {selectedResult.scoreSheetLink && (
+                                        <p className="text-xs text-green-400 mt-2 flex items-center gap-1">
+                                            <CheckCircle className="h-3 w-3" /> File uploaded: {selectedResult.scoreSheetLink.split('/').pop()}
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <LinkIcon className="h-4 w-4 text-slate-500" />
+                                    </div>
+                                    <input
+                                        value={selectedResult.scoreSheetLink || ''}
+                                        onChange={(e) => updateResult(selectedResultIndex, 'scoreSheetLink', e.target.value)}
+                                        className={`w-full bg-black/20 border rounded-lg pl-10 pr-10 p-3 text-white focus:outline-none transition-colors ${selectedResult.scoreSheetLink && !isValidUrl(selectedResult.scoreSheetLink)
+                                            ? 'border-red-500 focus:border-red-500'
+                                            : selectedResult.scoreSheetLink && isValidUrl(selectedResult.scoreSheetLink)
+                                                ? 'border-green-500/50 focus:border-green-500'
+                                                : 'border-white/10 focus:border-primary'
+                                            }`}
+                                        placeholder="https://docs.google.com/..."
+                                    />
+                                    {selectedResult.scoreSheetLink && (
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                            {isValidUrl(selectedResult.scoreSheetLink) ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <AlertCircle className="h-4 w-4 text-red-500" />
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            {selectedResult.scoreSheetLink && !isValidUrl(selectedResult.scoreSheetLink) && selectedResult.scoreSheetType !== 'upload' && (
+                                <p className="text-red-400 text-xs mt-1">Please enter a valid URL</p>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-4 bg-black/20 p-4 rounded-xl border border-white/5">

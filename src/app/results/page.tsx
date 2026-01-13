@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
-import { Medal, Trophy } from 'lucide-react';
+import { Medal, Trophy, Play, FileText } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 
 export default function ResultsPage() {
@@ -170,6 +170,37 @@ export default function ResultsPage() {
                                             {result.teamB}
                                         </div>
                                     </div>
+
+                                    {/* Action Buttons */}
+                                    {(result.liveLink || result.scoreSheetLink) && (
+                                        <div className="flex justify-center gap-3 mt-4 pt-3 border-t border-white/5">
+                                            {result.liveLink && (
+                                                <a
+                                                    href={result.liveLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={`inline-flex items-center gap-2 px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all ${result.streamStatus === 'Live'
+                                                        ? 'bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30'
+                                                        : 'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20'
+                                                        }`}
+                                                >
+                                                    <Play className="h-3 w-3" fill="currentColor" />
+                                                    Watch Stream
+                                                </a>
+                                            )}
+                                            {result.scoreSheetLink && (
+                                                <a
+                                                    href={result.scoreSheetLink}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-2 px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider transition-all bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                                                >
+                                                    <FileText className="h-3 w-3" />
+                                                    Score Sheet
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}

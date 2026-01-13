@@ -2,9 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
-import { Save, Play, Link as LinkIcon } from 'lucide-react';
+import { Save, Play, Link as LinkIcon, AlertCircle, CheckCircle } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { useRouter } from 'next/navigation';
+
+// URL validation helper
+const isValidUrl = (url: string): boolean => {
+    if (!url || url.trim() === '') return true; // Empty is valid (optional field)
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
 
 const SPORTS = [
     'Athletics',
@@ -31,16 +42,43 @@ export default function ManageStreams() {
         const token = localStorage.getItem('adminToken');
         if (!token) router.push('/admin/login');
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/results`)
-            .then((res) => res.json())
-            .then((data) => {
-                setResults(data);
+        const fetchData = async () => {
+            try {
+                const [scheduleRes, resultsRes] = await Promise.all([
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/schedule`),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/results`)
+                ]);
+
+                const scheduleData = await scheduleRes.json();
+                const resultsData = await resultsRes.json();
+
+                // Merge both datasets - use a Map to avoid duplicates by id
+                // Results data takes priority (may have updated stream info)
+                const matchMap = new Map();
+
+                // Add schedule matches first
+                scheduleData.forEach((match: any) => {
+                    matchMap.set(match.id, match);
+                });
+
+                // Add/override with results matches (they may have stream info already)
+                resultsData.forEach((match: any) => {
+                    matchMap.set(match.id, match);
+                });
+
+                setResults(Array.from(matchMap.values()));
                 setLoading(false);
-            });
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                setLoading(false);
+            }
+        };
+
+        fetchData();
     }, [router]);
 
     const handleSave = async () => {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/results`, {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/schedule`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(results),
@@ -97,6 +135,9 @@ export default function ManageStreams() {
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
                                     <span className="bg-primary/20 text-primary text-xs font-bold px-2 py-1 rounded uppercase">{match.sport}</span>
+                                    <span className="bg-white/10 text-slate-300 text-xs font-bold px-2 py-1 rounded">
+                                        {match.category === 'Women' ? 'W' : match.category === 'Men' ? 'M' : 'X'}
+                                    </span>
                                     <span className="text-slate-400 text-sm">{match.date}</span>
                                 </div>
                                 <div className="text-xl font-bold text-white">
@@ -116,10 +157,28 @@ export default function ManageStreams() {
                                         <input
                                             value={match.liveLink || ''}
                                             onChange={(e) => updateLiveLink(match.id, 'liveLink', e.target.value)}
-                                            className="w-full bg-black/20 border border-white/10 rounded-lg pl-10 p-3 text-white focus:border-primary focus:outline-none transition-colors"
+                                            className={`w-full bg-black/20 border rounded-lg pl-10 pr-10 p-3 text-white focus:outline-none transition-colors ${match.liveLink && !isValidUrl(match.liveLink)
+                                                ? 'border-red-500 focus:border-red-500'
+                                                : match.liveLink && isValidUrl(match.liveLink)
+                                                    ? 'border-green-500/50 focus:border-green-500'
+                                                    : 'border-white/10 focus:border-primary'
+                                                }`}
                                             placeholder="https://youtube.com/..."
                                         />
+                                        {/* Validation indicator */}
+                                        {match.liveLink && (
+                                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                                {isValidUrl(match.liveLink) ? (
+                                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                                ) : (
+                                                    <AlertCircle className="h-4 w-4 text-red-500" />
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
+                                    {match.liveLink && !isValidUrl(match.liveLink) && (
+                                        <p className="text-red-400 text-xs mt-1">Please enter a valid URL (e.g., https://youtube.com/...)</p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2 block">

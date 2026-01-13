@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
-import { Save, Plus, Trash, Trophy, ChevronDown } from 'lucide-react';
+import { Save, Plus, Trash, Trophy, ChevronDown, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import * as Select from '@radix-ui/react-select';
 
@@ -30,7 +30,8 @@ export default function ManageStandings() {
     const [standings, setStandings] = useState<Standing[]>([]);
     const [loading, setLoading] = useState(true);
     const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedEventId, setSelectedEventId] = useState<string>("");
+    const [selectedSport, setSelectedSport] = useState<string>("");
+    const [selectedCategory, setSelectedCategory] = useState<string>("");
     const router = useRouter();
 
     useEffect(() => {
@@ -43,8 +44,14 @@ export default function ManageStandings() {
         ]).then(([standingsData, teamsData]) => {
             setStandings(standingsData);
             setTeams(teamsData);
-            if (standingsData.length > 0) {
-                setSelectedEventId(standingsData[0].id);
+            // Auto-select first sport if available
+            const sports = [...new Set(standingsData.map((e: Standing) => e.sport))].filter(Boolean) as string[];
+            if (sports.length > 0) {
+                setSelectedSport(sports[0]);
+                const firstSportEvents = standingsData.filter((e: Standing) => e.sport === sports[0]);
+                if (firstSportEvents.length > 0) {
+                    setSelectedCategory(firstSportEvents[0].category || 'Men');
+                }
             }
             setLoading(false);
         }).catch((err) => {
@@ -86,7 +93,8 @@ export default function ManageStandings() {
         };
 
         setStandings([newEvent, ...standings]);
-        setSelectedEventId(newId);
+        setSelectedSport('');
+        setSelectedCategory('Men');
     };
 
     const updateEvent = (index: number, field: string, value: string) => {
@@ -114,16 +122,17 @@ export default function ManageStandings() {
                 const newStandings = [...prevStandings];
                 newStandings.splice(index, 1);
 
-                if (newStandings.length > 0) {
-                    setTimeout(() => {
-                        if (newStandings.length > 0) {
-                            setSelectedEventId(newStandings[0].id);
-                        } else {
-                            setSelectedEventId("");
-                        }
-                    }, 0);
+                // Reset selection
+                const sports = [...new Set(newStandings.map(e => e.sport))].filter(Boolean) as string[];
+                if (sports.length > 0) {
+                    setSelectedSport(sports[0]);
+                    const firstSportEvents = newStandings.filter(e => e.sport === sports[0]);
+                    if (firstSportEvents.length > 0) {
+                        setSelectedCategory(firstSportEvents[0].category || 'Men');
+                    }
                 } else {
-                    setTimeout(() => setSelectedEventId(""), 0);
+                    setSelectedSport('');
+                    setSelectedCategory('');
                 }
                 return newStandings;
             });
@@ -132,8 +141,26 @@ export default function ManageStandings() {
 
     if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>;
 
-    const selectedEventIndex = standings.findIndex(e => e.id === selectedEventId);
-    const selectedEvent = standings[selectedEventIndex];
+    // Get unique sports
+    const uniqueSports = [...new Set(standings.map(e => e.sport))].filter(Boolean) as string[];
+
+    // Get categories available for selected sport
+    const categoriesForSport = selectedSport
+        ? [...new Set(standings.filter(e => e.sport === selectedSport).map(e => e.category))]
+        : [];
+
+    // Find the selected event based on sport and category
+    const selectedEvent = standings.find(e => e.sport === selectedSport && e.category === selectedCategory);
+    const selectedEventIndex = selectedEvent ? standings.findIndex(e => e.id === selectedEvent.id) : -1;
+
+    // Handle sport change
+    const handleSportChange = (sport: string) => {
+        setSelectedSport(sport);
+        const categories = [...new Set(standings.filter(e => e.sport === sport).map(e => e.category))];
+        if (categories.length > 0) {
+            setSelectedCategory(categories[0]);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -162,109 +189,173 @@ export default function ManageStandings() {
                     </div>
                 </div>
 
-                {/* Event Selection Dropdown */}
-                <div className="mb-8">
-                    <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">Select Event to Edit</label>
-                    <Select.Root value={selectedEventId} onValueChange={setSelectedEventId}>
-                        <Select.Trigger className="w-full md:w-1/3 bg-black/40 border border-white/10 rounded-xl p-4 text-white focus:border-primary focus:outline-none flex justify-between items-center text-lg font-medium hover:bg-white/5 transition-colors">
-                            <Select.Value placeholder="Select an Event" />
-                            <Select.Icon>
-                                <ChevronDown className="h-5 w-5 opacity-50" />
-                            </Select.Icon>
-                        </Select.Trigger>
-                        <Select.Portal>
-                            <Select.Content className="overflow-hidden bg-slate-900 border border-white/10 rounded-xl shadow-xl z-50 max-h-[300px] w-[var(--radix-select-trigger-width)]">
-                                <Select.Viewport className="p-1">
-                                    {standings.map(event => (
-                                        <Select.Item
-                                            key={event.id}
-                                            value={event.id}
-                                            className="text-white text-base p-3 rounded-lg hover:bg-white/10 outline-none cursor-pointer flex items-center relative select-none data-[highlighted]:bg-white/10 data-[highlighted]:text-primary"
-                                        >
-                                            <Select.ItemText>
-                                                {event.sport || 'New Event'} {event.category ? `(${event.category})` : ''}
-                                            </Select.ItemText>
-                                        </Select.Item>
-                                    ))}
-                                </Select.Viewport>
-                            </Select.Content>
-                        </Select.Portal>
-                    </Select.Root>
+                {/* Event Selection - Two Step */}
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Step 1: Select Sport */}
+                    <div>
+                        <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">1. Select Sport</label>
+                        <Select.Root value={selectedSport} onValueChange={handleSportChange}>
+                            <Select.Trigger className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white focus:border-primary focus:outline-none flex justify-between items-center text-lg font-medium hover:bg-white/5 transition-colors">
+                                <Select.Value placeholder="Select a Sport" />
+                                <Select.Icon>
+                                    <ChevronDown className="h-5 w-5 opacity-50" />
+                                </Select.Icon>
+                            </Select.Trigger>
+                            <Select.Portal>
+                                <Select.Content className="overflow-hidden bg-slate-900 border border-white/10 rounded-xl shadow-xl z-50 max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                                    <Select.Viewport className="p-1">
+                                        {uniqueSports.map(sport => (
+                                            <Select.Item
+                                                key={sport}
+                                                value={sport}
+                                                className="text-white text-base p-3 rounded-lg hover:bg-white/10 outline-none cursor-pointer flex items-center relative select-none data-[highlighted]:bg-white/10 data-[highlighted]:text-primary"
+                                            >
+                                                <Select.ItemText>{sport}</Select.ItemText>
+                                            </Select.Item>
+                                        ))}
+                                    </Select.Viewport>
+                                </Select.Content>
+                            </Select.Portal>
+                        </Select.Root>
+                    </div>
+
+                    {/* Step 2: Select Category */}
+                    <div>
+                        <label className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2 block">2. Select Category</label>
+                        <Select.Root
+                            value={selectedCategory}
+                            onValueChange={setSelectedCategory}
+                            disabled={!selectedSport || categoriesForSport.length === 0}
+                        >
+                            <Select.Trigger className={`w-full bg-black/40 border border-white/10 rounded-xl p-4 text-white focus:border-primary focus:outline-none flex justify-between items-center text-lg font-medium transition-colors ${!selectedSport ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/5'}`}>
+                                <Select.Value placeholder="Select Category" />
+                                <Select.Icon>
+                                    <ChevronDown className="h-5 w-5 opacity-50" />
+                                </Select.Icon>
+                            </Select.Trigger>
+                            <Select.Portal>
+                                <Select.Content className="overflow-hidden bg-slate-900 border border-white/10 rounded-xl shadow-xl z-50 max-h-[300px] w-[var(--radix-select-trigger-width)]">
+                                    <Select.Viewport className="p-1">
+                                        {categoriesForSport.map(cat => (
+                                            <Select.Item
+                                                key={cat}
+                                                value={cat}
+                                                className="text-white text-base p-3 rounded-lg hover:bg-white/10 outline-none cursor-pointer flex items-center relative select-none data-[highlighted]:bg-white/10 data-[highlighted]:text-primary"
+                                            >
+                                                <Select.ItemText>{cat}</Select.ItemText>
+                                            </Select.Item>
+                                        ))}
+                                    </Select.Viewport>
+                                </Select.Content>
+                            </Select.Portal>
+                        </Select.Root>
+                    </div>
                 </div>
 
                 {selectedEvent ? (
-                    <div className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:border-primary/30 transition-all">
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                            <div className="md:col-span-3 space-y-2">
-                                <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">Sport Name</label>
-                                <input
-                                    value={selectedEvent.sport}
-                                    onChange={(e) => updateEvent(selectedEventIndex, 'sport', e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none"
-                                    placeholder="e.g. Cricket"
-                                />
-                            </div>
-                            <div className="md:col-span-2 space-y-2">
-                                <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">Type</label>
-                                <select
-                                    value={selectedEvent.type}
-                                    onChange={(e) => updateEvent(selectedEventIndex, 'type', e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="Team">Team Sport</option>
-                                    <option value="Standard">Standard (Athletics)</option>
-                                    <option value="Tug of War">Tug of War</option>
-                                </select>
-                            </div>
-                            <div className="md:col-span-2 space-y-2">
-                                <label className="text-xs text-slate-400 font-bold uppercase tracking-wider">Category</label>
-                                <select
-                                    value={selectedEvent.category || 'Men'}
-                                    onChange={(e) => updateEvent(selectedEventIndex, 'category', e.target.value)}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-white focus:border-primary focus:outline-none appearance-none cursor-pointer"
-                                >
-                                    <option value="Men">Men</option>
-                                    <option value="Women">Women</option>
-                                    <option value="Mixed">Mixed</option>
-                                </select>
-                            </div>
-
-                            <div className="md:col-span-6 grid grid-cols-2 md:grid-cols-4 gap-2">
-                                {['first', 'second', 'third', 'fourth'].map((pos, i) => (
-                                    <div key={pos} className="space-y-2">
-                                        <label className="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                                            {i === 0 && <Trophy className="h-3 w-3 text-yellow-400" />}
-                                            {i === 1 && <Trophy className="h-3 w-3 text-slate-400" />}
-                                            {i === 2 && <Trophy className="h-3 w-3 text-amber-700" />}
-                                            {i + 1}{i === 0 ? 'st' : i === 1 ? 'nd' : i === 2 ? 'rd' : 'th'}
-                                        </label>
-                                        <select
-                                            value={selectedEvent.results[pos as keyof Results] || ''}
-                                            onChange={(e) => updateEvent(selectedEventIndex, `results.${pos}`, e.target.value)}
-                                            className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-sm text-white focus:border-primary focus:outline-none appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Select</option>
-                                            {teams.map(t => (
-                                                <option key={t.id} value={t.name}>{t.name}</option>
-                                            ))}
-                                        </select>
+                    <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 overflow-hidden">
+                        {/* Header with Sport & Type */}
+                        <div className="bg-black/30 p-6 border-b border-white/10">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                                        <Trophy className="h-6 w-6 text-primary" />
                                     </div>
-                                ))}
+                                    <div>
+                                        <input
+                                            value={selectedEvent.sport}
+                                            onChange={(e) => updateEvent(selectedEventIndex, 'sport', e.target.value)}
+                                            className="bg-transparent text-2xl font-bold text-white focus:outline-none border-b border-transparent focus:border-primary transition-colors w-full"
+                                            placeholder="Enter Sport Name"
+                                        />
+                                        <p className="text-slate-400 text-sm mt-1">{selectedCategory} • {selectedEvent.type}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <select
+                                        value={selectedEvent.type}
+                                        onChange={(e) => updateEvent(selectedEventIndex, 'type', e.target.value)}
+                                        className="bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white text-sm focus:border-primary focus:outline-none appearance-none cursor-pointer"
+                                    >
+                                        <option value="Team">Team Sport</option>
+                                        <option value="Standard">Standard (Athletics)</option>
+                                        <option value="Tug of War">Tug of War</option>
+                                    </select>
+                                    <button
+                                        onClick={() => removeEvent(selectedEventIndex)}
+                                        className="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                                        title="Delete Event"
+                                    >
+                                        <Trash className="h-5 w-5" />
+                                    </button>
+                                </div>
                             </div>
+                        </div>
 
-                            <div className="md:col-span-1 flex justify-end pb-2">
+                        {/* Podium Results */}
+                        <div className="p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-sm text-slate-400 font-bold uppercase tracking-wider">Final Standings</h3>
                                 <button
-                                    onClick={() => removeEvent(selectedEventIndex)}
-                                    className="text-red-500 hover:text-red-400 p-2 rounded-lg hover:bg-red-500/10 transition-colors"
+                                    onClick={() => {
+                                        updateEvent(selectedEventIndex, 'results.first', '');
+                                        updateEvent(selectedEventIndex, 'results.second', '');
+                                        updateEvent(selectedEventIndex, 'results.third', '');
+                                        updateEvent(selectedEventIndex, 'results.fourth', '');
+                                    }}
+                                    className="text-xs text-slate-400 hover:text-white flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-all"
                                 >
-                                    <Trash className="h-5 w-5" />
+                                    <RotateCcw className="h-3 w-3" />
+                                    Reset
                                 </button>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {[
+                                    { pos: 'first', label: '1st Place', color: 'from-yellow-500/20 to-yellow-600/10', border: 'border-yellow-500/30', icon: 'text-yellow-400' },
+                                    { pos: 'second', label: '2nd Place', color: 'from-slate-400/20 to-slate-500/10', border: 'border-slate-400/30', icon: 'text-slate-300' },
+                                    { pos: 'third', label: '3rd Place', color: 'from-amber-700/20 to-amber-800/10', border: 'border-amber-700/30', icon: 'text-amber-600' },
+                                    { pos: 'fourth', label: '4th Place', color: 'from-white/5 to-white/0', border: 'border-white/10', icon: 'text-slate-500' }
+                                ].map((item) => {
+                                    // Get teams already selected in other positions
+                                    const selectedTeams = ['first', 'second', 'third', 'fourth']
+                                        .filter(p => p !== item.pos)
+                                        .map(p => selectedEvent.results[p as keyof Results])
+                                        .filter(Boolean);
+
+                                    // Filter available teams (exclude already selected, but keep current selection)
+                                    const availableTeams = teams.filter(t =>
+                                        !selectedTeams.includes(t.name) ||
+                                        t.name === selectedEvent.results[item.pos as keyof Results]
+                                    );
+
+                                    return (
+                                        <div key={item.pos} className={`bg-gradient-to-b ${item.color} rounded-xl border ${item.border} p-4 transition-all hover:scale-[1.02]`}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Trophy className={`h-4 w-4 ${item.icon}`} />
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</span>
+                                            </div>
+                                            <select
+                                                value={selectedEvent.results[item.pos as keyof Results] || ''}
+                                                onChange={(e) => updateEvent(selectedEventIndex, `results.${item.pos}`, e.target.value)}
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white font-medium focus:border-primary focus:outline-none appearance-none cursor-pointer"
+                                            >
+                                                <option value="">Select Team</option>
+                                                {availableTeams.map(t => (
+                                                    <option key={t.id} value={t.name}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center py-12 text-slate-500 bg-white/5 rounded-2xl border border-white/10">
-                        {standings.length === 0 ? "No events added. Click 'Add Event' to start." : "Select an event from the dropdown to edit."}
+                    <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/10">
+                        <Trophy className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                        <p className="text-slate-400 text-lg">
+                            {standings.length === 0 ? "No events added. Click 'Add Event' to start." : "Select a sport and category above to edit standings."}
+                        </p>
                     </div>
                 )}
             </main>
