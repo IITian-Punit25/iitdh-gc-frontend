@@ -47,8 +47,8 @@ export default function Navbar() {
                     <div className="flex items-center justify-between h-20">
                         <div className="flex items-center">
                             <Link href="/" className="flex items-center space-x-3 group">
-                                <div className="relative w-10 h-10 transition-transform group-hover:scale-110 duration-300">
-                                    <Image src="/logo.png" alt="GC Logo" fill className="object-contain" />
+                                <div className="relative w-20 h-20 transition-transform group-hover:scale-110 duration-300">
+                                    <Image src="/images/image-1-removebg-preview.png" alt="GC Logo" fill className="object-contain" />
                                 </div>
                                 <span className="font-bold text-xl tracking-tight text-foreground group-hover:text-primary transition-colors">
                                     IIT Dh Sports GC
