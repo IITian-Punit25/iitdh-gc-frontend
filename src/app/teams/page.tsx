@@ -1,30 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import { Users, Crown } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { io } from 'socket.io-client';
 
+interface Member {
+    name: string;
+    year: string;
+    branch: string;
+    isCaptain: boolean;
+    image: string;
+}
+
+interface Team {
+    id: string;
+    name: string;
+    members: Member[];
+}
+
 export default function TeamsPage() {
-    const [teams, setTeams] = useState<any[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
-    const fetchTeams = async () => {
+    const fetchTeams = useCallback(async () => {
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/teams`, { cache: 'no-store' });
             const data = await res.json();
             setTeams(data);
-            if (data.length > 0 && !selectedTeamId) {
-                setSelectedTeamId(data[0].id);
-            }
             setLoading(false);
         } catch (error) {
             console.error('Error fetching teams:', error);
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (teams.length > 0 && !selectedTeamId) {
+            setSelectedTeamId(teams[0].id);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [teams]);
 
     useEffect(() => {
         fetchTeams();
@@ -45,7 +63,7 @@ export default function TeamsPage() {
         return () => {
             socket.disconnect();
         };
-    }, []);
+    }, [fetchTeams]);
 
     const selectedTeam = teams.find(t => t.id === selectedTeamId);
 
@@ -92,7 +110,7 @@ export default function TeamsPage() {
                                 </div>
                                 <div className="p-8">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {selectedTeam.members.map((member: any, idx: number) => (
+                                        {selectedTeam.members.map((member: Member, idx: number) => (
                                             <div
                                                 key={idx}
                                                 className="flex items-center justify-between p-4 rounded-xl bg-black/20 hover:bg-white/5 transition-colors border border-white/5 group"

@@ -34,9 +34,29 @@ const SPORTS = [
 
 const CATEGORIES = ['Men', 'Women', 'Mixed'];
 
+interface Team {
+    id: string;
+    name: string;
+}
+
+interface Result {
+    id: string;
+    sport: string;
+    category: string;
+    teamA: string;
+    teamB: string;
+    scoreA: number;
+    scoreB: number;
+    winner: string;
+    date: string;
+    liveLink: string;
+    scoreSheetType?: 'url' | 'upload';
+    scoreSheetLink?: string;
+}
+
 export default function ManageResults() {
-    const [results, setResults] = useState<any[]>([]);
-    const [teams, setTeams] = useState<any[]>([]);
+    const [results, setResults] = useState<Result[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedResultId, setSelectedResultId] = useState<string>("");
     const [filterSport, setFilterSport] = useState<string>("All");
@@ -121,7 +141,7 @@ export default function ManageResults() {
 
     const updateResult = (index: number, field: string, value: string | number) => {
         const newResults = [...results];
-        newResults[index][field] = value;
+        (newResults[index] as any)[field] = value;
         setResults(newResults);
     };
 
@@ -223,7 +243,7 @@ export default function ManageResults() {
                             value={selectedResultId}
                             onValueChange={setSelectedResultId}
                             placeholder="Select a Match"
-                            options={(filterSport === "All" ? results : results.filter(r => r.sport === filterSport)).map(result => ({
+                            options={(filterSport === "All" ? results : results.filter(r => r.sport === filterSport)).map((result: Result) => ({
                                 value: result.id,
                                 label: `${result.teamA} vs ${result.teamB} (${result.category === 'Women' ? 'W' : result.category === 'Men' ? 'M' : 'X'})${result.date ? ` • ${new Date(result.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`
                             }))}

@@ -1,11 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Trophy, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
-const navLinks = [
+interface NavLink {
+    href: string;
+    label: string;
+    isLive?: boolean;
+}
+
+const navLinks: NavLink[] = [
     { href: '/', label: 'Home' },
     { href: '/teams', label: 'Teams' },
     { href: '/schedule', label: 'Schedule' },
@@ -18,16 +24,16 @@ const navLinks = [
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
-    const [hasActiveStream, setHasActiveStream] = useState(false);
+    // const [hasActiveStream, setHasActiveStream] = useState(false); // Unused
     const [isLiveNow, setIsLiveNow] = useState(false);
 
     useEffect(() => {
         fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/results`)
             .then((res) => res.json())
             .then((data) => {
-                const active = data.some((r: any) => r.streamStatus === 'Live' || r.streamStatus === 'Upcoming');
-                const live = data.some((r: any) => r.streamStatus === 'Live');
-                setHasActiveStream(active);
+                // const active = data.some((r: { streamStatus: string }) => r.streamStatus === 'Live' || r.streamStatus === 'Upcoming');
+                const live = data.some((r: { streamStatus: string }) => r.streamStatus === 'Live');
+                // setHasActiveStream(active);
                 setIsLiveNow(live);
             })
             .catch((err) => console.error('Error checking streams:', err));
@@ -59,7 +65,7 @@ export default function Navbar() {
                         {/* Desktop Navigation */}
                         <div className="hidden md:block">
                             <div className="ml-10 flex items-baseline space-x-1">
-                                {filteredLinks.map((link: any) => (
+                                {filteredLinks.map((link) => (
                                     <Link
                                         key={link.href}
                                         href={link.href}
@@ -92,7 +98,7 @@ export default function Navbar() {
                     {isOpen && (
                         <div className="md:hidden pb-4 bg-background/95 backdrop-blur-xl border-t border-border absolute left-0 right-0 px-4 shadow-2xl">
                             <div className="flex flex-col space-y-2 pt-4">
-                                {filteredLinks.map((link: any) => (
+                                {filteredLinks.map((link) => (
                                     <Link
                                         key={link.href}
                                         href={link.href}

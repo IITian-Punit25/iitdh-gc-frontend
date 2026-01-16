@@ -1,35 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import { Calendar, MapPin, Clock } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { io } from 'socket.io-client';
 
+interface Match {
+    id: string;
+    sport: string;
+    category: string;
+    teamA: string;
+    teamB: string;
+    date: string;
+    time: string;
+    venue: string;
+}
+
 export default function SchedulePage() {
-    const [schedule, setSchedule] = useState<any[]>([]);
+    const [schedule, setSchedule] = useState<Match[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedSport, setSelectedSport] = useState<string | null>(null);
 
-    const fetchSchedule = async () => {
+    const fetchSchedule = useCallback(async () => {
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/schedule`, { cache: 'no-store' });
             const data = await res.json();
             setSchedule(data);
-
-            // Auto-select first sport if none selected
-            if (data.length > 0 && !selectedSport) {
-                const sports = Array.from(new Set(data.map((m: any) => m.sport)));
-                if (sports.length > 0) {
-                    setSelectedSport(sports[0] as string);
-                }
-            }
             setLoading(false);
         } catch (error) {
             console.error('Error fetching schedule:', error);
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (schedule.length > 0 && !selectedSport) {
+            const sports = Array.from(new Set(schedule.map((m: Match) => m.sport)));
+            if (sports.length > 0) {
+                setSelectedSport(sports[0] as string);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [schedule]);
 
     useEffect(() => {
         fetchSchedule();
@@ -46,7 +59,7 @@ export default function SchedulePage() {
         return () => {
             socket.disconnect();
         };
-    }, []);
+    }, [fetchSchedule]);
 
     // Get unique sports
     const sports = Array.from(new Set(schedule.map(m => m.sport)));
@@ -75,7 +88,7 @@ export default function SchedulePage() {
                                 <CustomSelect
                                     value={selectedSport || ''}
                                     onValueChange={setSelectedSport}
-                                    options={sports.map((sport: any) => ({ value: sport, label: sport }))}
+                                    options={sports.map((sport: unknown) => ({ value: sport as string, label: sport as string }))}
                                     className="w-full text-center"
                                 />
                                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">

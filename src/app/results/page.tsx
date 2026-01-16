@@ -1,64 +1,44 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import { Medal, Trophy, Play, FileText } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { io } from 'socket.io-client';
 
+interface Result {
+    id: string;
+    sport: string;
+    category: string;
+    teamA: string;
+    teamB: string;
+    scoreA: number;
+    scoreB: number;
+    winner: string;
+    date: string;
+    liveLink?: string;
+    scoreSheetLink?: string;
+    streamStatus?: string;
+}
+
+interface Standing {
+    name: string;
+    points: number;
+    gold: number;
+    silver: number;
+    bronze: number;
+}
+
 export default function ResultsPage() {
-    const [results, setResults] = useState<any[]>([]);
+    const [results, setResults] = useState<Result[]>([]);
     const [loading, setLoading] = useState(true);
-    const [standings, setStandings] = useState<{ men: any[], women: any[] }>({ men: [], women: [] });
+    const [standings, setStandings] = useState<{ men: Standing[], women: Standing[] }>({ men: [], women: [] });
 
     const [selectedSport, setSelectedSport] = useState<string | null>(null);
 
-    const fetchData = () => {
-        Promise.all([
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/results`, { cache: 'no-store' }).then(res => res.json()),
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/standings`, { cache: 'no-store' }).then(res => res.json())
-        ]).then(([resultsData, standingsData]) => {
-            setResults(resultsData);
-
-            // Auto-select first sport if none selected
-            if (resultsData.length > 0 && !selectedSport) {
-                const sports = Array.from(new Set(resultsData.map((m: any) => m.sport)));
-                if (sports.length > 0) {
-                    setSelectedSport(sports[0] as string);
-                }
-            }
-
-            setStandings(calculateStandings(standingsData));
-            setLoading(false);
-        }).catch((err) => {
-            console.error('ResultsPage: Error fetching data:', err);
-            setLoading(false);
-        });
-    };
-
-    useEffect(() => {
-        fetchData();
-
-        const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
-
-        socket.on('connect', () => {
-            console.log('Connected to socket server');
-        });
-
-        socket.on('dataUpdate', (data: { type: string }) => {
-            if (data.type === 'results' || data.type === 'standings') {
-                fetchData();
-            }
-        });
-
-        return () => {
-            socket.disconnect();
-        };
-    }, []);
-
-    const calculateStandings = (events: any[]) => {
-        const scoresMen: any = {};
-        const scoresWomen: any = {};
+    const calculateStandings = (events: unknown[]) => {
+        const scoresMen: Record<string, Standing> = {};
+        const scoresWomen: Record<string, Standing> = {};
 
         // Initialize scores
         ['Hostel 1', 'Hostel 2', 'Hostel 3', 'Hostel 4'].forEach(h => {
@@ -66,7 +46,7 @@ export default function ResultsPage() {
             scoresWomen[h] = { name: h, points: 0, gold: 0, silver: 0, bronze: 0 };
         });
 
-        events.forEach(event => {
+        events.forEach((event: any) => {
             const { type, results, category } = event;
             let pointsMap = { first: 0, second: 0, third: 0, fourth: 0 };
 
@@ -94,7 +74,7 @@ export default function ResultsPage() {
             }
         });
 
-        const sortStandings = (scores: any) => Object.values(scores).sort((a: any, b: any) => {
+        const sortStandings = (scores: Record<string, Standing>) => Object.values(scores).sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
             return b.gold - a.gold;
         });
@@ -104,6 +84,52 @@ export default function ResultsPage() {
             women: sortStandings(scoresWomen)
         };
     };
+
+    const fetchData = useCallback(() => {
+        Promise.all([
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/results`, { cache: 'no-store' }).then(res => res.json()),
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/standings`, { cache: 'no-store' }).then(res => res.json())
+        ]).then(([resultsData, standingsData]) => {
+            setResults(resultsData);
+            setStandings(calculateStandings(standingsData));
+            setLoading(false);
+        }).catch((err) => {
+            console.error('ResultsPage: Error fetching data:', err);
+            setLoading(false);
+        });
+    }, []);
+
+    useEffect(() => {
+        if (results.length > 0 && !selectedSport) {
+            const sports = Array.from(new Set(results.map((m: Result) => m.sport)));
+            if (sports.length > 0) {
+                setSelectedSport(sports[0] as string);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [results]);
+
+    useEffect(() => {
+        fetchData();
+
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000');
+
+        socket.on('connect', () => {
+            console.log('Connected to socket server');
+        });
+
+        socket.on('dataUpdate', (data: { type: string }) => {
+            if (data.type === 'results' || data.type === 'standings') {
+                fetchData();
+            }
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [fetchData]);
+
+
 
     // Get unique sports
     const sports = Array.from(new Set(results.map(m => m.sport)));
@@ -136,7 +162,7 @@ export default function ResultsPage() {
                                 <CustomSelect
                                     value={selectedSport || ''}
                                     onValueChange={setSelectedSport}
-                                    options={sports.map((sport: any) => ({ value: sport, label: sport }))}
+                                    options={sports.map((sport: unknown) => ({ value: sport as string, label: sport as string }))}
                                     className="w-full text-xs font-bold"
                                 />
                                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
@@ -154,7 +180,7 @@ export default function ResultsPage() {
                                 <p className="text-slate-400 text-sm">No results found for this sport.</p>
                             </div>
                         ) : (
-                            filteredResults.map((result: any) => (
+                            filteredResults.map((result: Result) => (
                                 <div
                                     key={result.id}
                                     className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:border-primary/50 transition-all"

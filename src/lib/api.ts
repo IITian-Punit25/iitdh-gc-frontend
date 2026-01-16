@@ -6,7 +6,7 @@ export const api = {
         if (!res.ok) throw new Error(`API Error: ${res.statusText}`);
         return res.json();
     },
-    post: async (endpoint: string, data: any) => {
+    post: async (endpoint: string, data: unknown) => {
         const res = await fetch(`${API_URL}${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

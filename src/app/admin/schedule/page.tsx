@@ -23,9 +23,25 @@ const SPORTS = [
 
 const CATEGORIES = ['Men', 'Women', 'Mixed'];
 
+interface Team {
+    id: string;
+    name: string;
+}
+
+interface Match {
+    id: string;
+    sport: string;
+    category: string;
+    teamA: string;
+    teamB: string;
+    date: string;
+    time: string;
+    venue: string;
+}
+
 export default function ManageSchedule() {
-    const [schedule, setSchedule] = useState<any[]>([]);
-    const [teams, setTeams] = useState<any[]>([]);
+    const [schedule, setSchedule] = useState<Match[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMatchId, setSelectedMatchId] = useState<string>("");
     const [filterSport, setFilterSport] = useState<string>("All");
@@ -103,7 +119,7 @@ export default function ManageSchedule() {
 
     const updateMatch = (index: number, field: string, value: string) => {
         const newSchedule = [...schedule];
-        newSchedule[index][field] = value;
+        (newSchedule[index] as any)[field] = value;
         setSchedule(newSchedule);
     };
 
@@ -181,7 +197,7 @@ export default function ManageSchedule() {
                             value={selectedMatchId}
                             onValueChange={setSelectedMatchId}
                             placeholder="Select a Match"
-                            options={(filterSport === "All" ? schedule : schedule.filter(m => m.sport === filterSport)).map(match => ({
+                            options={(filterSport === "All" ? schedule : schedule.filter(m => m.sport === filterSport)).map((match: Match) => ({
                                 value: match.id,
                                 label: `${match.teamA} vs ${match.teamB} (${match.category === 'Women' ? 'W' : match.category === 'Men' ? 'M' : 'X'})${match.date ? ` • ${new Date(match.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`
                             }))}
@@ -274,7 +290,7 @@ export default function ManageSchedule() {
                                                     value={selectedMatch.teamA}
                                                     onValueChange={(val) => updateMatch(selectedMatchIndex, 'teamA', val)}
                                                     placeholder="Select Team"
-                                                    options={teams.filter(t => t.name !== selectedMatch.teamB).map(t => ({ value: t.name, label: t.name }))}
+                                                    options={teams.filter((t: Team) => t.name !== selectedMatch.teamB).map((t: Team) => ({ value: t.name, label: t.name }))}
                                                 />
                                             </div>
                                         </div>
@@ -290,7 +306,7 @@ export default function ManageSchedule() {
                                                     value={selectedMatch.teamB}
                                                     onValueChange={(val) => updateMatch(selectedMatchIndex, 'teamB', val)}
                                                     placeholder="Select Team"
-                                                    options={teams.filter(t => t.name !== selectedMatch.teamA).map(t => ({ value: t.name, label: t.name }))}
+                                                    options={teams.filter((t: Team) => t.name !== selectedMatch.teamA).map((t: Team) => ({ value: t.name, label: t.name }))}
                                                 />
                                             </div>
                                         </div>

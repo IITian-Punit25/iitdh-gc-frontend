@@ -5,8 +5,15 @@ import Navbar from '@/components/layout/Navbar';
 import { Save, Plus, Trash, Upload, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
+interface GalleryItem {
+    id: string;
+    title: string;
+    url: string;
+    type: 'url' | 'upload';
+}
+
 export default function ManageGallery() {
-    const [gallery, setGallery] = useState<any[]>([]);
+    const [gallery, setGallery] = useState<GalleryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
     const router = useRouter();
@@ -50,7 +57,7 @@ export default function ManageGallery() {
 
     const updateImage = (index: number, field: string, value: string) => {
         const newGallery = [...gallery];
-        newGallery[index][field] = value;
+        (newGallery[index] as any)[field] = value;
         setGallery(newGallery);
     };
 
@@ -119,7 +126,7 @@ export default function ManageGallery() {
                             No images in gallery. Click "Add Image" to upload or link one.
                         </div>
                     )}
-                    {gallery.map((item, index) => (
+                    {gallery.map((item: GalleryItem, index: number) => (
                         <div key={item.id} className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:border-primary/30 transition-all">
                             <div className="aspect-video bg-black/30 rounded-xl mb-6 overflow-hidden border border-white/5 relative group">
                                 {item.url ? (

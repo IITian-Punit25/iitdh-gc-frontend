@@ -6,8 +6,22 @@ import { Save, Plus, Trash, Crown } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { useRouter } from 'next/navigation';
 
+interface Member {
+    name: string;
+    year: string;
+    branch: string;
+    isCaptain: boolean;
+    image: string;
+}
+
+interface Team {
+    id: string;
+    name: string;
+    members: Member[];
+}
+
 export default function ManageTeams() {
-    const [teams, setTeams] = useState<any[]>([]);
+    const [teams, setTeams] = useState<Team[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
     const [selectedTeamId, setSelectedTeamId] = useState<string>("");
@@ -99,14 +113,14 @@ export default function ManageTeams() {
 
     const updateMember = (teamIndex: number, memberIndex: number, field: string, value: string) => {
         const newTeams = [...teams];
-        newTeams[teamIndex].members[memberIndex][field] = value;
+        (newTeams[teamIndex].members[memberIndex] as any)[field] = value;
         setTeams(newTeams);
     };
 
     const toggleCaptain = (teamIndex: number, memberIndex: number) => {
         const newTeams = [...teams];
         // Unset captain for all other members in the team
-        newTeams[teamIndex].members.forEach((member: any, idx: number) => {
+        newTeams[teamIndex].members.forEach((member: Member, idx: number) => {
             member.isCaptain = idx === memberIndex;
         });
         setTeams(newTeams);
@@ -120,7 +134,7 @@ export default function ManageTeams() {
         const newTeams = [...teams];
         newTeams[teamIndex].members.splice(memberIndex, 1);
         // If we removed the captain, make the first member captain
-        if (newTeams[teamIndex].members.length > 0 && !newTeams[teamIndex].members.some((m: any) => m.isCaptain)) {
+        if (newTeams[teamIndex].members.length > 0 && !newTeams[teamIndex].members.some((m: Member) => m.isCaptain)) {
             newTeams[teamIndex].members[0].isCaptain = true;
         }
         setTeams(newTeams);
@@ -192,7 +206,7 @@ export default function ManageTeams() {
                         value={selectedTeamId}
                         onValueChange={setSelectedTeamId}
                         placeholder="Select a Team"
-                        options={teams.map(team => ({ value: team.id, label: team.name }))}
+                        options={teams.map((team: Team) => ({ value: team.id, label: team.name }))}
                         className="w-full md:w-1/3"
                     />
                 </div>
@@ -240,7 +254,7 @@ export default function ManageTeams() {
                             </div>
 
                             <div className="space-y-3">
-                                {selectedTeam.members.map((member: any, memberIndex: number) => (
+                                {selectedTeam.members.map((member: Member, memberIndex: number) => (
                                     <div
                                         key={memberIndex}
                                         className={`bg-gradient-to-r ${member.isCaptain ? 'from-yellow-500/10 to-transparent border-yellow-500/20' : 'from-white/5 to-transparent border-white/5'} p-4 rounded-xl border transition-all hover:border-white/20`}
