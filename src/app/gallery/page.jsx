@@ -13,7 +13,7 @@ export default function GalleryPage() {
 
     const fetchGallery = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/gallery`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/gallery`);
             const data = await res.json();
             setGallery(data);
             setLoading(false);
@@ -26,7 +26,7 @@ export default function GalleryPage() {
     useEffect(() => {
         fetchGallery();
 
-        const socket = io(process.env.NEXT_PUBLIC_API_URL);
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || '');
 
         socket.on('dataUpdate', (data) => {
             if (data.type === 'gallery') {

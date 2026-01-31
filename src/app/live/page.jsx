@@ -11,8 +11,8 @@ export default function LivePage() {
 
     useEffect(() => {
         Promise.all([
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`),
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`)
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/results`),
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/schedule`)
         ])
             .then(([resResults, resSchedule]) => Promise.all([resResults.json(), resSchedule.json()]))
             .then(([resultsData, scheduleData]) => {

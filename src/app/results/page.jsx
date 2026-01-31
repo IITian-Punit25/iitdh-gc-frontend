@@ -69,9 +69,9 @@ export default function ResultsPage() {
 
     const fetchData = useCallback(() => {
         Promise.all([
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`, { cache: 'no-store' }).then(res => res.json()),
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/standings`, { cache: 'no-store' }).then(res => res.json()),
-            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams`, { cache: 'no-store' }).then(res => res.json())
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/results`, { cache: 'no-store' }).then(res => res.json()),
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/standings`, { cache: 'no-store' }).then(res => res.json()),
+            fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/teams`, { cache: 'no-store' }).then(res => res.json())
         ]).then(([resultsData, standingsData, teamsData]) => {
             const safeResults = Array.isArray(resultsData) ? resultsData : (resultsData ? [resultsData] : []);
             setResults(safeResults);
@@ -96,7 +96,7 @@ export default function ResultsPage() {
     useEffect(() => {
         fetchData();
 
-        const socket = io(process.env.NEXT_PUBLIC_API_URL);
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || '');
 
         socket.on('connect', () => {
             console.log('Connected to socket server');

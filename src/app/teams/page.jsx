@@ -14,7 +14,7 @@ export default function TeamsPage() {
 
     const fetchTeams = useCallback(async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams`, { cache: 'no-store' });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/teams`, { cache: 'no-store' });
             const data = await res.json();
             setTeams(data);
             setLoading(false);
@@ -34,7 +34,7 @@ export default function TeamsPage() {
     useEffect(() => {
         fetchTeams();
 
-        const socket = io(process.env.NEXT_PUBLIC_API_URL);
+        const socket = io(process.env.NEXT_PUBLIC_API_URL || '');
 
         socket.on('connect', () => {
             console.log('Connected to socket server');

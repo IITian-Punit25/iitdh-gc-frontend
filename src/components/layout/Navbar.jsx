@@ -21,7 +21,7 @@ export default function Navbar() {
     const [isLiveNow, setIsLiveNow] = useState(false);
 
     useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/results`)
             .then((res) => res.json())
             .then((data) => {
                 const safeData = Array.isArray(data) ? data : (data ? [data] : []);
