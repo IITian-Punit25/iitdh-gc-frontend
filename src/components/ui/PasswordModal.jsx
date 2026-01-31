@@ -1,16 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Lock, X } from 'lucide-react';
-
-interface PasswordModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onConfirm: (password: string) => Promise<boolean>;
-    onExceededAttempts: () => void;
-    title?: string;
-    message?: string;
-}
 
 export default function PasswordModal({
     isOpen,
@@ -19,22 +10,24 @@ export default function PasswordModal({
     onExceededAttempts,
     title = "Security Check",
     message = "Please enter the admin password to confirm this action."
-}: PasswordModalProps) {
+}) {
     const [password, setPassword] = useState('');
     const [attempts, setAttempts] = useState(0);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // Reset state when modal opens/closes
-    if (!isOpen && (attempts > 0 || error || password)) {
-        setAttempts(0);
-        setError('');
-        setPassword('');
-    }
+    // Reset state when modal closes (moved to useEffect to fix React anti-pattern)
+    useEffect(() => {
+        if (!isOpen) {
+            setAttempts(0);
+            setError('');
+            setPassword('');
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
@@ -97,8 +90,8 @@ export default function PasswordModal({
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder="Enter Admin Password"
                                 className={`w-full bg-black/30 border rounded-xl px-4 py-3 text-white focus:ring-2 outline-none transition-all placeholder:text-slate-600 ${error
-                                        ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
-                                        : 'border-white/10 focus:ring-primary/50 focus:border-primary'
+                                    ? 'border-red-500 focus:ring-red-500/50 focus:border-red-500'
+                                    : 'border-white/10 focus:ring-primary/50 focus:border-primary'
                                     }`}
                                 autoFocus
                             />

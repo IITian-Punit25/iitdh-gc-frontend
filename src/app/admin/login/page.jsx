@@ -2,15 +2,16 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import Navbar from '@/components/layout/Navbar';
 
 export default function AdminLogin() {
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/login`, {
@@ -27,6 +28,7 @@ export default function AdminLogin() {
                 setError(data.message);
             }
         } catch (err) {
+            console.error('Login error:', err);
             setError('Login failed. Is the backend running?');
         }
     };
@@ -56,14 +58,23 @@ export default function AdminLogin() {
 
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-slate-600"
-                                placeholder="Enter admin password"
-                            />
+                            <div className="relative">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder:text-slate-600"
+                                    placeholder="Enter admin password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-[38px] text-slate-500 hover:text-white transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
+                            </div>
                         </div>
                         <button
                             type="submit"

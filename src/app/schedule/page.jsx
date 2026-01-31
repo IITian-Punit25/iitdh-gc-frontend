@@ -7,21 +7,10 @@ import { Calendar, MapPin, Clock } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { io } from 'socket.io-client';
 
-interface Match {
-    id: string;
-    sport: string;
-    category: string;
-    teamA: string;
-    teamB: string;
-    date: string;
-    time: string;
-    venue: string;
-}
-
 export default function SchedulePage() {
-    const [schedule, setSchedule] = useState<Match[]>([]);
+    const [schedule, setSchedule] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedSport, setSelectedSport] = useState<string | null>(null);
+    const [selectedSport, setSelectedSport] = useState(null);
 
     const fetchSchedule = useCallback(async () => {
         try {
@@ -37,9 +26,9 @@ export default function SchedulePage() {
 
     useEffect(() => {
         if (schedule.length > 0 && !selectedSport) {
-            const sports = Array.from(new Set(schedule.map((m: Match) => m.sport)));
+            const sports = Array.from(new Set(schedule.map((m) => m.sport)));
             if (sports.length > 0) {
-                setSelectedSport(sports[0] as string);
+                setSelectedSport(sports[0]);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,7 +39,7 @@ export default function SchedulePage() {
 
         const socket = io(process.env.NEXT_PUBLIC_API_URL);
 
-        socket.on('dataUpdate', (data: { type: string }) => {
+        socket.on('dataUpdate', (data) => {
             if (data.type === 'schedule') {
                 console.log('Schedule update received, refreshing data...');
                 fetchSchedule();
@@ -89,7 +78,7 @@ export default function SchedulePage() {
                                 <CustomSelect
                                     value={selectedSport || ''}
                                     onValueChange={setSelectedSport}
-                                    options={sports.map((sport: unknown) => ({ value: sport as string, label: sport as string }))}
+                                    options={sports.map((sport) => ({ value: sport, label: sport }))}
                                     className="w-full text-center"
                                 />
                                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">

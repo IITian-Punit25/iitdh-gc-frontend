@@ -8,35 +8,15 @@ import PasswordModal from '@/components/ui/PasswordModal';
 import { useRouter } from 'next/navigation';
 import * as Select from '@radix-ui/react-select';
 
-interface Results {
-    first: string;
-    second: string;
-    third: string;
-    fourth: string;
-}
-
-interface Standing {
-    id: string;
-    sport: string;
-    type: string;
-    category: string;
-    results: Results;
-}
-
-interface Team {
-    id: string;
-    name: string;
-}
-
 export default function ManageStandings() {
-    const [standings, setStandings] = useState<Standing[]>([]);
+    const [standings, setStandings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [teams, setTeams] = useState<Team[]>([]);
-    const [selectedSport, setSelectedSport] = useState<string>("");
-    const [selectedCategory, setSelectedCategory] = useState<string>("");
+    const [teams, setTeams] = useState([]);
+    const [selectedSport, setSelectedSport] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("");
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [confirmCallback, setConfirmCallback] = useState<((password: string) => Promise<boolean>) | null>(null);
+    const [confirmCallback, setConfirmCallback] = useState(null);
     const router = useRouter();
 
     const handleLogout = () => {
@@ -55,10 +35,10 @@ export default function ManageStandings() {
             setStandings(standingsData);
             setTeams(teamsData);
             // Auto-select first sport if available
-            const sports = [...new Set(standingsData.map((e: Standing) => e.sport))].filter(Boolean) as string[];
+            const sports = [...new Set(standingsData.map((e) => e.sport))].filter(Boolean);
             if (sports.length > 0) {
                 setSelectedSport(sports[0]);
-                const firstSportEvents = standingsData.filter((e: Standing) => e.sport === sports[0]);
+                const firstSportEvents = standingsData.filter((e) => e.sport === sports[0]);
                 if (firstSportEvents.length > 0) {
                     setSelectedCategory(firstSportEvents[0].category || 'Men');
                 }
@@ -82,7 +62,7 @@ export default function ManageStandings() {
         setIsPasswordModalOpen(true);
     };
 
-    const handleConfirmSave = async (password: string): Promise<boolean> => {
+    const handleConfirmSave = async (password) => {
         setSaving(true);
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/standings`, {
@@ -111,7 +91,7 @@ export default function ManageStandings() {
 
     const addEvent = () => {
         const newId = Date.now().toString();
-        const newEvent: Standing = {
+        const newEvent = {
             id: newId,
             sport: '',
             type: 'Team', // Standard, Team, Tug of War
@@ -124,33 +104,33 @@ export default function ManageStandings() {
         setSelectedCategory('Men');
     };
 
-    const updateEvent = (index: number, field: string, value: string) => {
+    const updateEvent = (index, field, value) => {
         setStandings(prevStandings => {
             const newStandings = [...prevStandings];
             // Create a shallow copy of the event being updated
             newStandings[index] = { ...newStandings[index] };
 
             if (field.includes('.')) {
-                const [parent, child] = field.split('.') as [keyof Standing, keyof Results];
+                const [parent, child] = field.split('.');
                 if (parent === 'results') {
                     // Create a shallow copy of the results object
                     newStandings[index].results = { ...newStandings[index].results, [child]: value };
                 }
             } else {
-                (newStandings[index] as unknown as Record<string, string>)[field] = value;
+                newStandings[index][field] = value;
             }
             return newStandings;
         });
     };
 
-    const removeEvent = (index: number) => {
+    const removeEvent = (index) => {
         if (confirm('Delete this event?')) {
             setStandings(prevStandings => {
                 const newStandings = [...prevStandings];
                 newStandings.splice(index, 1);
 
                 // Reset selection
-                const sports = [...new Set(newStandings.map(e => e.sport))].filter(Boolean) as string[];
+                const sports = [...new Set(newStandings.map(e => e.sport))].filter(Boolean);
                 if (sports.length > 0) {
                     setSelectedSport(sports[0]);
                     const firstSportEvents = newStandings.filter(e => e.sport === sports[0]);
@@ -169,7 +149,7 @@ export default function ManageStandings() {
     if (loading) return <Loader />;
 
     // Get unique sports
-    const uniqueSports = [...new Set(standings.map(e => e.sport))].filter(Boolean) as string[];
+    const uniqueSports = [...new Set(standings.map(e => e.sport))].filter(Boolean);
 
     // Get categories available for selected sport
     const categoriesForSport = selectedSport
@@ -181,7 +161,7 @@ export default function ManageStandings() {
     const selectedEventIndex = selectedEvent ? standings.findIndex(e => e.id === selectedEvent.id) : -1;
 
     // Handle sport change
-    const handleSportChange = (sport: string) => {
+    const handleSportChange = (sport) => {
         setSelectedSport(sport);
         const categories = [...new Set(standings.filter(e => e.sport === sport).map(e => e.category))];
         if (categories.length > 0) {
@@ -363,13 +343,13 @@ export default function ManageStandings() {
                                     // Get teams already selected in other positions
                                     const selectedTeams = ['first', 'second', 'third', 'fourth']
                                         .filter(p => p !== item.pos)
-                                        .map(p => selectedEvent.results[p as keyof Results])
+                                        .map(p => selectedEvent.results[p])
                                         .filter(Boolean);
 
                                     // Filter available teams (exclude already selected, but keep current selection)
                                     const availableTeams = teams.filter(t =>
                                         !selectedTeams.includes(t.name) ||
-                                        t.name === selectedEvent.results[item.pos as keyof Results]
+                                        t.name === selectedEvent.results[item.pos]
                                     );
 
                                     return (
@@ -379,7 +359,7 @@ export default function ManageStandings() {
                                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{item.label}</span>
                                             </div>
                                             <select
-                                                value={selectedEvent.results[item.pos as keyof Results] || ''}
+                                                value={selectedEvent.results[item.pos] || ''}
                                                 onChange={(e) => updateEvent(selectedEventIndex, `results.${item.pos}`, e.target.value)}
                                                 className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white font-medium focus:border-primary focus:outline-none appearance-none cursor-pointer"
                                             >

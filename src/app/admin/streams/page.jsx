@@ -5,11 +5,12 @@ import Navbar from '@/components/layout/Navbar';
 import Loader from '@/components/ui/Loader';
 import { Save, Play, Link as LinkIcon, AlertCircle, CheckCircle } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
-import PasswordModal from '@/components/ui/PasswordModal';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+import PasswordModal from '@/components/ui/PasswordModal';
 
 // URL validation helper
-const isValidUrl = (url: string): boolean => {
+const isValidUrl = (url) => {
     if (!url || url.trim() === '') return true; // Empty is valid (optional field)
     try {
         const parsed = new URL(url);
@@ -35,32 +36,33 @@ const SPORTS = [
 ];
 
 export default function ManageStreams() {
-    const [results, setResults] = useState<any[]>([]);
+    const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [selectedSport, setSelectedSport] = useState(SPORTS[0]);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [confirmCallback, setConfirmCallback] = useState<((password: string) => Promise<boolean>) | null>(null);
+    const [confirmCallback, setConfirmCallback] = useState(null);
     const router = useRouter();
 
     const handleLogout = () => {
-        localStorage.removeItem('adminToken');
+        if (typeof window !== 'undefined') localStorage.removeItem('adminToken');
         router.push('/admin/login');
     };
 
     useEffect(() => {
         const token = localStorage.getItem('adminToken');
-        if (!token) router.push('/admin/login');
+        if (!token) {
+            router.push('/admin/login');
+            return;
+        }
 
         const fetchData = async () => {
             try {
-                const [scheduleRes, resultsRes] = await Promise.all([
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`),
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`)
+                // Using api helper which handles auth headers
+                const [scheduleData, resultsData] = await Promise.all([
+                    api.get('/api/schedule'),
+                    api.get('/api/results')
                 ]);
-
-                const scheduleData = await scheduleRes.json();
-                const resultsData = await resultsRes.json();
 
                 const safeSchedule = Array.isArray(scheduleData) ? scheduleData : (scheduleData ? [scheduleData] : []);
                 const safeResults = Array.isArray(resultsData) ? resultsData : (resultsData ? [resultsData] : []);
@@ -70,12 +72,12 @@ export default function ManageStreams() {
                 const matchMap = new Map();
 
                 // Add schedule matches first
-                safeSchedule.forEach((match: any) => {
+                safeSchedule.forEach((match) => {
                     matchMap.set(match.id, { ...match, source: 'schedule' });
                 });
 
                 // Add/override with results matches (they may have stream info already)
-                safeResults.forEach((match: any) => {
+                safeResults.forEach((match) => {
                     matchMap.set(match.id, { ...match, source: 'result' });
                 });
 
@@ -83,6 +85,11 @@ export default function ManageStreams() {
                 setLoading(false);
             } catch (error) {
                 console.error('Error fetching data:', error);
+                // Auth errors are handled by api helper throwing or we can catch here
+                // api helper in this project re-throws 401/403, so we can catch it.
+                if (error.status === 401 || error.status === 403) {
+                    handleLogout();
+                }
                 setLoading(false);
             }
         };
@@ -90,58 +97,45 @@ export default function ManageStreams() {
         fetchData();
     }, [router]);
 
-    const handleSaveClick = () => {
-        setConfirmCallback(() => handleConfirmSave);
+    const handleSaveClick = async () => {
+        setConfirmCallback(() => executeSave);
         setIsPasswordModalOpen(true);
     };
 
-    const handleConfirmSave = async (password: string): Promise<boolean> => {
+    const executeSave = async (password) => {
         setSaving(true);
         try {
             const scheduleUpdates = results.filter(r => r.source === 'schedule');
             const resultUpdates = results.filter(r => r.source === 'result');
 
-            const responses = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-password': password
-                    },
-                    body: JSON.stringify(scheduleUpdates),
-                }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-password': password
-                    },
-                    body: JSON.stringify(resultUpdates),
-                })
+            // Using fetch to pass password header
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                'x-admin-password': password
+            };
+
+            await Promise.all([
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`, { method: 'POST', headers, body: JSON.stringify(scheduleUpdates) }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`, { method: 'POST', headers, body: JSON.stringify(resultUpdates) })
             ]);
 
-            const allOk = responses.every(res => res.ok);
-            const isUnauthorized = responses.some(res => res.status === 401 || res.status === 403);
-
-            if (allOk) {
-                alert('Streams saved successfully!');
-                return true;
-            } else {
-                if (!isUnauthorized) {
-                    alert('Failed to save streams. Please try again.');
-                }
-                return false;
-            }
+            alert('Streams saved successfully!');
+            return true;
         } catch (error) {
             console.error('Error saving streams:', error);
+            if (error.status === 401 || error.status === 403) {
+                // Assuming api behavior or simple catch
+                return false;
+            }
             alert('Failed to save streams.');
-            return false;
+            return true;
         } finally {
             setSaving(false);
         }
     };
 
-    const updateLiveLink = (id: string, field: string, value: string) => {
+    const updateLiveLink = (id, field, value) => {
         const newResults = results.map(match => {
             if (match.id === id) {
                 return { ...match, [field]: value };
@@ -172,7 +166,7 @@ export default function ManageStreams() {
                         {saving ? (
                             <>
                                 <div className="h-5 w-5 mr-2 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                                Saving...
+                                saving...
                             </>
                         ) : (
                             <>

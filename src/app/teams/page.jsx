@@ -7,24 +7,10 @@ import { Users, Crown } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { io } from 'socket.io-client';
 
-interface Member {
-    name: string;
-    year: string;
-    branch: string;
-    isCaptain: boolean;
-    image: string;
-}
-
-interface Team {
-    id: string;
-    name: string;
-    members: Member[];
-}
-
 export default function TeamsPage() {
-    const [teams, setTeams] = useState<Team[]>([]);
+    const [teams, setTeams] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+    const [selectedTeamId, setSelectedTeamId] = useState(null);
 
     const fetchTeams = useCallback(async () => {
         try {
@@ -54,7 +40,7 @@ export default function TeamsPage() {
             console.log('Connected to socket server');
         });
 
-        socket.on('dataUpdate', (data: { type: string }) => {
+        socket.on('dataUpdate', (data) => {
             if (data.type === 'teams') {
                 console.log('Teams update received, refreshing data...');
                 fetchTeams();
@@ -111,7 +97,7 @@ export default function TeamsPage() {
                                 </div>
                                 <div className="p-8">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {selectedTeam.members.map((member: Member, idx: number) => (
+                                        {selectedTeam.members.map((member, idx) => (
                                             <div
                                                 key={idx}
                                                 className="flex items-center justify-between p-4 rounded-xl bg-black/20 hover:bg-white/5 transition-colors border border-white/5 group"

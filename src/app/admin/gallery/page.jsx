@@ -4,44 +4,46 @@ import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Loader from '@/components/ui/Loader';
 import { Save, Plus, Trash, Upload, Link as LinkIcon, Loader2 } from 'lucide-react';
-import PasswordModal from '@/components/ui/PasswordModal';
 import { useRouter } from 'next/navigation';
-
-interface GalleryItem {
-    id: string;
-    title: string;
-    url: string;
-    type: 'url' | 'upload';
-}
+import { api } from '@/lib/api';
+import PasswordModal from '@/components/ui/PasswordModal';
 
 export default function ManageGallery() {
-    const [gallery, setGallery] = useState<GalleryItem[]>([]);
+    const [gallery, setGallery] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
+    const [uploading, setUploading] = useState({});
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [confirmCallback, setConfirmCallback] = useState<((password: string) => Promise<boolean>) | null>(null);
-    const [pendingUpload, setPendingUpload] = useState<{ index: number, file: File } | null>(null);
+    const [confirmCallback, setConfirmCallback] = useState(null);
     const router = useRouter();
+
+    const handleLogout = () => {
+        if (typeof window !== 'undefined') localStorage.removeItem('adminToken');
+        router.push('/admin/login');
+    };
+
+    const fetchData = async () => {
+        try {
+            const data = await api.get('/api/gallery');
+            setGallery(data);
+            setLoading(false);
+        } catch (err) {
+            console.error('Error fetching gallery:', err);
+            // If unauthorized, redirect to login
+            if (err.status === 401 || err.status === 403) {
+                router.push('/admin/login');
+            }
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         const token = localStorage.getItem('adminToken');
         if (!token) router.push('/admin/login');
-
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/gallery`)
-            .then((res) => res.json())
-            .then((data) => {
-                setGallery(data);
-                setLoading(false);
-            });
+        else fetchData();
     }, [router]);
 
-    const handleLogout = () => {
-        localStorage.removeItem('adminToken');
-        router.push('/admin/login');
-    };
-
-    const handleSaveClick = () => {
+    const handleSaveClick = async () => {
         const validGallery = gallery.filter(item => item.title && item.url);
 
         if (validGallery.length < gallery.length) {
@@ -50,34 +52,38 @@ export default function ManageGallery() {
             }
             setGallery(validGallery);
         }
-        setConfirmCallback(() => handleConfirmSave);
+
+        setConfirmCallback(() => (password) => executeSave(validGallery, password));
         setIsPasswordModalOpen(true);
     };
 
-    const handleConfirmSave = async (password: string): Promise<boolean> => {
-        const validGallery = gallery.filter(item => item.title && item.url);
-
+    const executeSave = async (validGallery, password) => {
         setSaving(true);
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/gallery`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
                     'x-admin-password': password
                 },
-                body: JSON.stringify(validGallery),
+                body: JSON.stringify(validGallery)
             });
 
             if (res.ok) {
                 alert('Gallery saved successfully!');
                 return true;
             } else {
-                return false;
+                if (res.status === 401 || res.status === 403) return false;
+
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || 'Failed to save gallery.');
+                return true;
             }
         } catch (error) {
             console.error('Error saving gallery:', error);
             alert('Failed to save gallery.');
-            return false;
+            return true;
         } finally {
             setSaving(false);
         }
@@ -90,7 +96,7 @@ export default function ManageGallery() {
         ]);
     };
 
-    const updateImage = (index: number, field: string, value: string) => {
+    const updateImage = (index, field, value) => {
         setGallery(prevGallery => {
             const newGallery = [...prevGallery];
             newGallery[index] = { ...newGallery[index], [field]: value };
@@ -98,7 +104,11 @@ export default function ManageGallery() {
         });
     };
 
-    const removeImage = (index: number) => {
+    const removeImage = (index) => {
+        // Option 1: Just remove from local state (requires save to persist)
+        // Option 2: Require password to remove immediately?
+        // Since the pattern here is "Save Changes" at the top, local removal is fine.
+        // Password is challenged only on Save.
         setGallery(prevGallery => {
             const newGallery = [...prevGallery];
             newGallery.splice(index, 1);
@@ -106,47 +116,29 @@ export default function ManageGallery() {
         });
     };
 
-    const handleFileUploadClick = (index: number, file: File) => {
+    const handleFileUploadClick = async (index, file) => {
         if (!file) return;
-        setPendingUpload({ index, file });
-        setConfirmCallback(() => handleConfirmUpload);
-        setIsPasswordModalOpen(true);
-    };
-
-    const handleConfirmUpload = async (password: string): Promise<boolean> => {
-        if (!pendingUpload) return false;
-        const { index, file } = pendingUpload;
-        // Do not close modal here, let component handle it on success
 
         setUploading(prev => ({ ...prev, [index]: true }));
         const formData = new FormData();
         formData.append('image', file);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
-                method: 'POST',
-                headers: { 'x-admin-password': password },
-                body: formData,
-            });
-            const data = await res.json();
-
-            if (res.ok && data.success) {
+            const data = await api.upload('/api/upload', formData);
+            if (data.success) {
                 updateImage(index, 'url', data.url);
-                return true;
             } else {
-                // Only alert if it's NOT a password error (401/403)
-                if (res.status !== 401 && res.status !== 403) {
-                    alert('Upload failed: ' + (data.message || 'Unknown error'));
-                }
-                return false;
+                alert('Upload failed: ' + (data.message || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error uploading file:', error);
-            alert('Error uploading file');
-            return false;
+            if (error.status === 401 || error.status === 403) {
+                router.push('/admin/login');
+            } else {
+                alert('Error uploading file');
+            }
         } finally {
             setUploading(prev => ({ ...prev, [index]: false }));
-            setPendingUpload(null);
         }
     };
 
@@ -200,7 +192,7 @@ export default function ManageGallery() {
                             No images in gallery. Click "Add Image" to upload or link one.
                         </div>
                     )}
-                    {gallery.map((item: GalleryItem, index: number) => (
+                    {gallery.map((item, index) => (
                         <div key={item.id} className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border border-white/10 hover:border-primary/30 transition-all">
                             <div className="aspect-video bg-black/30 rounded-xl mb-6 overflow-hidden border border-white/5 relative group">
                                 {item.url ? (

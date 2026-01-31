@@ -7,42 +7,19 @@ import { Medal, Trophy, Play, FileText } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { io } from 'socket.io-client';
 
-interface Result {
-    id: string;
-    sport: string;
-    category: string;
-    teamA: string;
-    teamB: string;
-    scoreA: number;
-    scoreB: number;
-    winner: string;
-    date: string;
-    liveLink?: string;
-    scoreSheetLink?: string;
-    streamStatus?: string;
-}
-
-interface Standing {
-    name: string;
-    points: number;
-    gold: number;
-    silver: number;
-    bronze: number;
-}
-
 export default function ResultsPage() {
-    const [results, setResults] = useState<Result[]>([]);
+    const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [standings, setStandings] = useState<{ men: Standing[], women: Standing[] }>({ men: [], women: [] });
+    const [standings, setStandings] = useState({ men: [], women: [] });
 
-    const [selectedSport, setSelectedSport] = useState<string | null>(null);
+    const [selectedSport, setSelectedSport] = useState(null);
 
-    const calculateStandings = (events: unknown[], teams: any[]) => {
-        const scoresMen: Record<string, Standing> = {};
-        const scoresWomen: Record<string, Standing> = {};
+    const calculateStandings = (events, teams) => {
+        const scoresMen = {};
+        const scoresWomen = {};
 
         // Initialize scores with dynamic teams filtered by category
-        teams.forEach((team: any) => {
+        teams.forEach((team) => {
             if (team.category === 'Women') {
                 scoresWomen[team.name] = { name: team.name, points: 0, gold: 0, silver: 0, bronze: 0 };
             } else {
@@ -51,7 +28,7 @@ export default function ResultsPage() {
             }
         });
 
-        events.forEach((event: any) => {
+        events.forEach((event) => {
             const { type, results, category } = event;
             let pointsMap = { first: 0, second: 0, third: 0, fourth: 0 };
 
@@ -79,7 +56,7 @@ export default function ResultsPage() {
             }
         });
 
-        const sortStandings = (scores: Record<string, Standing>) => Object.values(scores).sort((a, b) => {
+        const sortStandings = (scores) => Object.values(scores).sort((a, b) => {
             if (b.points !== a.points) return b.points - a.points;
             return b.gold - a.gold;
         });
@@ -108,9 +85,9 @@ export default function ResultsPage() {
 
     useEffect(() => {
         if (results.length > 0 && !selectedSport) {
-            const sports = Array.from(new Set(results.map((m: Result) => m.sport)));
+            const sports = Array.from(new Set(results.map((m) => m.sport)));
             if (sports.length > 0) {
-                setSelectedSport(sports[0] as string);
+                setSelectedSport(sports[0]);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,7 +102,7 @@ export default function ResultsPage() {
             console.log('Connected to socket server');
         });
 
-        socket.on('dataUpdate', (data: { type: string }) => {
+        socket.on('dataUpdate', (data) => {
             if (data.type === 'results' || data.type === 'standings' || data.type === 'teams') {
                 fetchData();
             }
@@ -169,7 +146,7 @@ export default function ResultsPage() {
                                 <CustomSelect
                                     value={selectedSport || ''}
                                     onValueChange={setSelectedSport}
-                                    options={sports.map((sport: unknown) => ({ value: sport as string, label: sport as string }))}
+                                    options={sports.map((sport) => ({ value: sport, label: sport }))}
                                     className="w-full text-xs font-bold"
                                 />
                                 <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-slate-400">
@@ -187,7 +164,7 @@ export default function ResultsPage() {
                                 <p className="text-slate-400 text-sm">No results found for this sport.</p>
                             </div>
                         ) : (
-                            filteredResults.map((result: Result) => (
+                            filteredResults.map((result) => (
                                 <div
                                     key={result.id}
                                     className="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-4 hover:border-primary/50 transition-all"

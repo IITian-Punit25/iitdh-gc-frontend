@@ -5,60 +5,56 @@ import Navbar from '@/components/layout/Navbar';
 import Loader from '@/components/ui/Loader';
 import { Save, Plus, Trash, Crown } from 'lucide-react';
 import CustomSelect from '@/components/ui/CustomSelect';
-import PasswordModal from '@/components/ui/PasswordModal';
 import { useRouter } from 'next/navigation';
-
-interface Member {
-    name: string;
-    year: string;
-    branch: string;
-    isCaptain: boolean;
-    image: string;
-}
-
-interface Team {
-    id: string;
-    name: string;
-    category: 'Men' | 'Women';
-    members: Member[];
-}
+import { api } from '@/lib/api';
+import PasswordModal from '@/components/ui/PasswordModal';
 
 export default function ManageTeams() {
-    const [teams, setTeams] = useState<Team[]>([]);
+    const [teams, setTeams] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
-    const [selectedTeamId, setSelectedTeamId] = useState<string>("");
+    const [uploading, setUploading] = useState({});
+    const [selectedTeamId, setSelectedTeamId] = useState("");
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
-    const [confirmCallback, setConfirmCallback] = useState<((password: string) => Promise<boolean>) | null>(null);
+    const [confirmCallback, setConfirmCallback] = useState(null);
     const router = useRouter();
 
-    const handleLogout = () => {
-        localStorage.removeItem('adminToken');
+    const handleLogout = async () => {
+        await api.logout();
         router.push('/admin/login');
     };
 
+    const fetchTeams = async () => {
+        try {
+            const data = await api.get('/api/teams');
+            // Ensure all teams have a category (migration for existing data)
+            const teamsWithCategory = data.map((t) => ({
+                ...t,
+                category: t.category || 'Men'
+            }));
+            setTeams(teamsWithCategory);
+            if (teamsWithCategory.length > 0 && !selectedTeamId) {
+                setSelectedTeamId(teamsWithCategory[0].id);
+            }
+            setLoading(false);
+        } catch (err) {
+            console.error('Error fetching teams:', err);
+            // If unauthorized, redirect to login
+            if (err.status === 401 || err.status === 403) {
+                router.push('/admin/login');
+            }
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
+        // Quick check for token existence on mount
         const token = localStorage.getItem('adminToken');
         if (!token) router.push('/admin/login');
-
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams`)
-            .then((res) => res.json())
-            .then((data) => {
-                // Ensure all teams have a category (migration for existing data)
-                const teamsWithCategory = data.map((t: any) => ({
-                    ...t,
-                    category: t.category || 'Men'
-                }));
-                setTeams(teamsWithCategory);
-                if (teamsWithCategory.length > 0) {
-                    setSelectedTeamId(teamsWithCategory[0].id);
-                }
-                setLoading(false);
-            });
+        else fetchTeams();
     }, [router]);
 
-    const handleSaveClick = () => {
+    const handleSaveClick = async () => {
         for (const team of teams) {
             if (!team.name) {
                 alert("All teams must have a name.");
@@ -75,38 +71,43 @@ export default function ManageTeams() {
                 }
             }
         }
-        setConfirmCallback(() => handleConfirmSave);
+        setConfirmCallback(() => executeSave);
         setIsPasswordModalOpen(true);
     };
 
-    const handleConfirmSave = async (password: string): Promise<boolean> => {
+    const executeSave = async (password) => {
         setSaving(true);
         try {
+            // Using fetch directly for password header
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
                     'x-admin-password': password
                 },
-                body: JSON.stringify(teams),
+                body: JSON.stringify(teams)
             });
 
             if (res.ok) {
                 alert('Teams saved successfully!');
                 return true;
             } else {
-                return false;
+                if (res.status === 401 || res.status === 403) return false;
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || 'Failed to save teams.');
+                return true;
             }
         } catch (error) {
             console.error('Error saving teams:', error);
             alert('Failed to save teams.');
-            return false;
+            return true;
         } finally {
             setSaving(false);
         }
     };
 
-    const updateTeamName = (index: number, name: string) => {
+    const updateTeamName = (index, name) => {
         setTeams(prevTeams => {
             const newTeams = [...prevTeams];
             newTeams[index] = { ...newTeams[index], name };
@@ -114,15 +115,13 @@ export default function ManageTeams() {
         });
     };
 
-    const updateTeamCategory = (index: number, category: 'Men' | 'Women') => {
+    const updateTeamCategory = (index, category) => {
         setTeams(prevTeams => {
             const newTeams = [...prevTeams];
             newTeams[index] = { ...newTeams[index], category };
             return newTeams;
         });
     };
-
-    const [pendingAddTeam, setPendingAddTeam] = useState<{ name: string, memberName: string } | null>(null);
 
     const addTeamClick = () => {
         const teamName = prompt("Enter Team Name:");
@@ -131,20 +130,17 @@ export default function ManageTeams() {
         const memberName = prompt("Enter First Member Name:");
         if (!memberName) return;
 
-        setPendingAddTeam({ name: teamName, memberName });
-        setConfirmCallback(() => handleConfirmAddTeam);
+        setConfirmCallback(() => (password) => executeAddTeam(teamName, memberName, password));
         setIsPasswordModalOpen(true);
     };
 
-    const handleConfirmAddTeam = async (password: string): Promise<boolean> => {
-        if (!pendingAddTeam) return false;
-
+    const executeAddTeam = async (teamName, memberName, password) => {
         const newTeamId = Date.now().toString();
-        const newTeam: Team = {
+        const newTeam = {
             id: newTeamId,
-            name: pendingAddTeam.name,
+            name: teamName,
             category: 'Men',
-            members: [{ name: pendingAddTeam.memberName, year: '1st Year', branch: 'CSE', isCaptain: true, image: '' }]
+            members: [{ name: memberName, year: '1st Year', branch: 'CSE', isCaptain: true, image: '' }]
         };
 
         const newTeams = [newTeam, ...teams];
@@ -155,9 +151,10 @@ export default function ManageTeams() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
                     'x-admin-password': password
                 },
-                body: JSON.stringify(newTeams),
+                body: JSON.stringify(newTeams)
             });
 
             if (res.ok) {
@@ -166,49 +163,50 @@ export default function ManageTeams() {
                 alert('Team added successfully!');
                 return true;
             } else {
-                return false;
+                if (res.status === 401 || res.status === 403) return false;
+                alert('Failed to add team.');
+                return true;
             }
         } catch (error) {
             console.error('Error adding team:', error);
             alert('Failed to add team.');
-            return false;
+            return true;
         } finally {
             setSaving(false);
-            setPendingAddTeam(null);
         }
     };
 
-    const removeTeamClick = (index: number) => {
+    const removeTeamClick = (index) => {
         const teamToDelete = teams[index];
-        if (confirm(`Are you sure you want to delete team "${teamToDelete.name}" (${teamToDelete.category})? This will IMMEDIATELY remove all associated data (matches, results, standings) and cannot be undone.`)) {
-            setConfirmCallback(() => (password: string) => handleConfirmRemoveTeam(index, password));
-            setIsPasswordModalOpen(true);
+        if (!confirm(`Are you sure you want to delete team "${teamToDelete.name}" (${teamToDelete.category})? This will IMMEDIATELY remove all associated data (matches, results, standings) and cannot be undone.`)) {
+            return;
         }
+        setConfirmCallback(() => (password) => executeRemoveTeam(index, password));
+        setIsPasswordModalOpen(true);
     };
 
-    const handleConfirmRemoveTeam = async (index: number, password: string): Promise<boolean> => {
-        // Do not close modal here, let component handle it on success
+    const executeRemoveTeam = async (index, password) => {
         const teamToDelete = teams[index];
-
         setSaving(true);
         try {
             // 1. Fetch all related data
-            const [scheduleRes, resultsRes, standingsRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/standings`)
+            const [scheduleData, resultsData, standingsData] = await Promise.all([
+                api.get('/api/schedule'),
+                api.get('/api/results'),
+                api.get('/api/standings')
             ]);
 
-            const schedule = await scheduleRes.json();
-            const results = await resultsRes.json();
-            const standings = await standingsRes.json();
+            // Handle array checks
+            const schedule = Array.isArray(scheduleData) ? scheduleData : [];
+            const results = Array.isArray(resultsData) ? resultsData : [];
+            const standings = Array.isArray(standingsData) ? standingsData : [];
 
             // 2. Filter out matches/results involving the team
-            const updatedSchedule = schedule.filter((m: any) => m.teamA !== teamToDelete.name && m.teamB !== teamToDelete.name);
-            const updatedResults = results.filter((r: any) => r.teamA !== teamToDelete.name && r.teamB !== teamToDelete.name);
+            const updatedSchedule = schedule.filter((m) => m.teamA !== teamToDelete.name && m.teamB !== teamToDelete.name);
+            const updatedResults = results.filter((r) => r.teamA !== teamToDelete.name && r.teamB !== teamToDelete.name);
 
             // 3. Update standings (clear team name if present)
-            const updatedStandings = standings.map((s: any) => {
+            const updatedStandings = standings.map((s) => {
                 const newResults = { ...s.results };
                 if (newResults.first === teamToDelete.name) newResults.first = '';
                 if (newResults.second === teamToDelete.name) newResults.second = '';
@@ -217,70 +215,58 @@ export default function ManageTeams() {
                 return { ...s, results: newResults };
             });
 
-            // 4. Save updated data
+            // 4. Save updated data (we need to send password for these too if they are being protected now)
+            // But we can assume the main team deletion is the gatekeeper. Ideally backend should handle cascading deletes transactionally.
+            // Since we are doing it client-side (as per existing logic), we'll just try to save them.
+            // If the other endpoints are also password protected, we need to pass the password header to them too!
+
+            // To allow this to work seamlessly, we will use the same password for all requests.
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                'x-admin-password': password
+            };
+
             await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-password': password
-                    },
-                    body: JSON.stringify(updatedSchedule),
-                }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-password': password
-                    },
-                    body: JSON.stringify(updatedResults),
-                }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/standings`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-password': password
-                    },
-                    body: JSON.stringify(updatedStandings),
-                })
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schedule`, { method: 'POST', headers, body: JSON.stringify(updatedSchedule) }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/results`, { method: 'POST', headers, body: JSON.stringify(updatedResults) }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/standings`, { method: 'POST', headers, body: JSON.stringify(updatedStandings) })
             ]);
 
             // 5. Remove team locally and save
             const newTeams = [...teams];
             newTeams.splice(index, 1);
-            setTeams(newTeams);
 
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/teams`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-admin-password': password
-                },
-                body: JSON.stringify(newTeams),
+                headers,
+                body: JSON.stringify(newTeams)
             });
 
-            if (newTeams.length > 0) {
-                setSelectedTeamId(newTeams[0].id);
-            } else {
-                setSelectedTeamId("");
-            }
-
             if (res.ok) {
+                setTeams(newTeams);
+                if (newTeams.length > 0) {
+                    setSelectedTeamId(newTeams[0].id);
+                } else {
+                    setSelectedTeamId("");
+                }
                 alert('Team and associated data deleted successfully!');
                 return true;
             } else {
-                return false;
+                if (res.status === 401 || res.status === 403) return false;
+                alert('Failed to delete team.');
+                return true;
             }
         } catch (error) {
             console.error("Error deleting team:", error);
             alert("Failed to delete team and associated data.");
-            return false;
+            return true;
         } finally {
             setSaving(false);
         }
     };
 
-    const addMember = (teamIndex: number) => {
+    const addMember = (teamIndex) => {
         setTeams(prevTeams => {
             const newTeams = [...prevTeams];
             const newMembers = [{ name: '', year: '', branch: '', isCaptain: false, image: '' }, ...newTeams[teamIndex].members];
@@ -289,7 +275,7 @@ export default function ManageTeams() {
         });
     };
 
-    const updateMember = (teamIndex: number, memberIndex: number, field: string, value: string) => {
+    const updateMember = (teamIndex, memberIndex, field, value) => {
         setTeams(prevTeams => {
             const newTeams = [...prevTeams];
             const newTeam = { ...newTeams[teamIndex] };
@@ -301,7 +287,7 @@ export default function ManageTeams() {
         });
     };
 
-    const toggleCaptain = (teamIndex: number, memberIndex: number) => {
+    const toggleCaptain = (teamIndex, memberIndex) => {
         setTeams(prevTeams => {
             const newTeams = [...prevTeams];
             const newTeam = { ...newTeams[teamIndex] };
@@ -315,7 +301,7 @@ export default function ManageTeams() {
         });
     };
 
-    const removeMember = (teamIndex: number, memberIndex: number) => {
+    const removeMember = (teamIndex, memberIndex) => {
         if (teams[teamIndex].members.length <= 1) {
             alert("A team must have at least one member.");
             return;
@@ -337,19 +323,9 @@ export default function ManageTeams() {
         });
     };
 
-    const [pendingUpload, setPendingUpload] = useState<{ teamIndex: number, memberIndex: number, file: File } | null>(null);
 
-    const handleFileUploadClick = (teamIndex: number, memberIndex: number, file: File) => {
+    const handleFileUploadChange = async (teamIndex, memberIndex, file) => {
         if (!file) return;
-        setPendingUpload({ teamIndex, memberIndex, file });
-        setConfirmCallback(() => handleConfirmUpload);
-        setIsPasswordModalOpen(true);
-    };
-
-    const handleConfirmUpload = async (password: string): Promise<boolean> => {
-        if (!pendingUpload) return false;
-        const { teamIndex, memberIndex, file } = pendingUpload;
-        // Do not close modal here, let component handle it on success
 
         const uploadKey = `${teamIndex}-${memberIndex}`;
         setUploading(prev => ({ ...prev, [uploadKey]: true }));
@@ -357,30 +333,17 @@ export default function ManageTeams() {
         formData.append('image', file);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, {
-                method: 'POST',
-                headers: { 'x-admin-password': password },
-                body: formData,
-            });
-            const data = await res.json();
-
-            if (res.ok && data.success) {
+            const data = await api.upload('/api/upload', formData);
+            if (data.success) {
                 updateMember(teamIndex, memberIndex, 'image', data.url);
-                return true;
             } else {
-                // Only alert if it's NOT a password error (401/403)
-                if (res.status !== 401 && res.status !== 403) {
-                    alert('Upload failed: ' + (data.message || 'Unknown error'));
-                }
-                return false;
+                alert('Upload failed: ' + (data.message || 'Unknown error'));
             }
         } catch (error) {
             console.error('Error uploading file:', error);
             alert('Error uploading file');
-            return false;
         } finally {
             setUploading(prev => ({ ...prev, [uploadKey]: false }));
-            setPendingUpload(null);
         }
     };
 
@@ -440,7 +403,7 @@ export default function ManageTeams() {
                         value={selectedTeamId}
                         onValueChange={setSelectedTeamId}
                         placeholder="Select a Team"
-                        options={teams.map((team: Team) => ({ value: team.id, label: `${team.name} (${team.category})` }))}
+                        options={teams.map((team) => ({ value: team.id, label: `${team.name} (${team.category})` }))}
                         className="w-full md:w-1/3"
                     />
                 </div>
@@ -506,7 +469,7 @@ export default function ManageTeams() {
                             </div>
 
                             <div className="space-y-3">
-                                {selectedTeam.members.map((member: Member, memberIndex: number) => (
+                                {selectedTeam.members.map((member, memberIndex) => (
                                     <div
                                         key={memberIndex}
                                         className={`bg-gradient-to-r ${member.isCaptain ? 'from-yellow-500/10 to-transparent border-yellow-500/20' : 'from-white/5 to-transparent border-white/5'} p-4 rounded-xl border transition-all hover:border-white/20`}
@@ -524,7 +487,7 @@ export default function ManageTeams() {
                                                 <input
                                                     type="file"
                                                     accept="image/*"
-                                                    onChange={(e) => e.target.files && handleFileUploadClick(selectedTeamIndex, memberIndex, e.target.files[0])}
+                                                    onChange={(e) => e.target.files && handleFileUploadChange(selectedTeamIndex, memberIndex, e.target.files[0])}
                                                     className="absolute inset-0 opacity-0 cursor-pointer"
                                                     title="Upload Image"
                                                 />

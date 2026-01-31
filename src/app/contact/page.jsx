@@ -7,7 +7,7 @@ import { Mail, Phone, MapPin, Instagram, Youtube } from 'lucide-react';
 import { io } from 'socket.io-client';
 
 export default function ContactPage() {
-    const [contact, setContact] = useState<any>(null);
+    const [contact, setContact] = useState(null);
     const [loading, setLoading] = useState(true);
 
     const fetchContact = async () => {
@@ -27,7 +27,7 @@ export default function ContactPage() {
 
         const socket = io(process.env.NEXT_PUBLIC_API_URL);
 
-        socket.on('dataUpdate', (data: { type: string }) => {
+        socket.on('dataUpdate', (data) => {
             if (data.type === 'contact') {
                 console.log('Contact update received, refreshing data...');
                 fetchContact();
@@ -111,7 +111,7 @@ export default function ContactPage() {
                             <h2 className="text-2xl font-bold text-white mb-8">Coordinators</h2>
 
                             <div className="space-y-4">
-                                {contact.coordinators && contact.coordinators.map((coord: any, idx: number) => (
+                                {contact.coordinators && contact.coordinators.map((coord, idx) => (
                                     <div key={idx} className="p-6 bg-black/20 rounded-xl border border-white/5 hover:border-primary/30 transition-colors flex items-center gap-6">
                                         <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 bg-white/5 flex-shrink-0">
                                             <img

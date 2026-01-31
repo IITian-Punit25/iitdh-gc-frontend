@@ -3,13 +3,13 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Loader from '@/components/ui/Loader';
-import { Image as ImageIcon, X, ZoomIn, Loader2 } from 'lucide-react';
+import { Image as ImageIcon, X, ZoomIn } from 'lucide-react';
 import { io } from 'socket.io-client';
 
 export default function GalleryPage() {
-    const [gallery, setGallery] = useState<any[]>([]);
+    const [gallery, setGallery] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedImage, setSelectedImage] = useState<any | null>(null);
+    const [selectedImage, setSelectedImage] = useState(null);
 
     const fetchGallery = async () => {
         try {
@@ -28,7 +28,7 @@ export default function GalleryPage() {
 
         const socket = io(process.env.NEXT_PUBLIC_API_URL);
 
-        socket.on('dataUpdate', (data: { type: string }) => {
+        socket.on('dataUpdate', (data) => {
             if (data.type === 'gallery') {
                 console.log('Gallery update received, refreshing data...');
                 fetchGallery();
@@ -40,7 +40,7 @@ export default function GalleryPage() {
         };
     }, []);
 
-    const openLightbox = (item: any) => {
+    const openLightbox = (item) => {
         setSelectedImage(item);
         document.body.style.overflow = 'hidden';
     };

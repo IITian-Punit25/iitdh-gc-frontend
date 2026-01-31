@@ -3,15 +3,6 @@
 import * as Select from '@radix-ui/react-select';
 import { ChevronDown } from 'lucide-react';
 
-interface CustomSelectProps {
-    value: string;
-    onValueChange: (value: string) => void;
-    placeholder?: string;
-    options: { value: string; label: string }[];
-    className?: string;
-    disabled?: boolean;
-}
-
 export default function CustomSelect({
     value,
     onValueChange,
@@ -19,7 +10,7 @@ export default function CustomSelect({
     options,
     className = "",
     disabled = false
-}: CustomSelectProps) {
+}) {
     return (
         <Select.Root value={value} onValueChange={onValueChange} disabled={disabled}>
             <Select.Trigger

@@ -5,13 +5,7 @@ import { Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
-interface NavLink {
-    href: string;
-    label: string;
-    isLive?: boolean;
-}
-
-const navLinks: NavLink[] = [
+const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/teams', label: 'Teams' },
     { href: '/schedule', label: 'Schedule' },
@@ -24,7 +18,6 @@ const navLinks: NavLink[] = [
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
-    // const [hasActiveStream, setHasActiveStream] = useState(false); // Unused
     const [isLiveNow, setIsLiveNow] = useState(false);
 
     useEffect(() => {
@@ -32,9 +25,7 @@ export default function Navbar() {
             .then((res) => res.json())
             .then((data) => {
                 const safeData = Array.isArray(data) ? data : (data ? [data] : []);
-                // const active = safeData.some((r: { streamStatus: string }) => r.streamStatus === 'Live' || r.streamStatus === 'Upcoming');
-                const live = safeData.some((r: { streamStatus: string }) => r.streamStatus === 'Live');
-                // setHasActiveStream(active);
+                const live = safeData.some((r) => r.streamStatus === 'Live');
                 setIsLiveNow(live);
             })
             .catch((err) => console.error('Error checking streams:', err));

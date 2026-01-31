@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Loader from '@/components/ui/Loader';
-import { Play, Calendar, Trophy } from 'lucide-react';
+import { Play, Calendar } from 'lucide-react';
 
 export default function LivePage() {
-    const [results, setResults] = useState<any[]>([]);
+    const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -22,9 +22,9 @@ export default function LivePage() {
                 const safeSchedule = Array.isArray(scheduleData) ? scheduleData : (scheduleData ? [scheduleData] : []);
 
                 const combined = [...safeResults];
-                const resultIds = new Set(safeResults.map((r: any) => r.id));
+                const resultIds = new Set(safeResults.map((r) => r.id));
 
-                safeSchedule.forEach((match: any) => {
+                safeSchedule.forEach((match) => {
                     if (!resultIds.has(match.id)) {
                         combined.push(match);
                     }
